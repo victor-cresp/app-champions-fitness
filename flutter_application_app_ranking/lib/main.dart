@@ -4,14 +4,18 @@ import 'package:http/http.dart' as http;
 import 'dart:convert';
 import 'package:geolocator/geolocator.dart';
 import 'dart:async';
+import 'package:flutter/foundation.dart' show kIsWeb;
 
+// Inicialização oficial com as suas credenciais
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
 
-  // Inicialização oficial com as suas credenciais
   await Supabase.initialize(
     url: 'https://sixinlpheadgnxguutvr.supabase.co',
     anonKey: 'sb_publishable_7XYEQNIfSXrbfh8CH1BVkA_jxOYzGGo',
+    authOptions: const FlutterAuthClientOptions(
+      authFlowType: AuthFlowType.pkce,
+    ),
   );
 
   runApp(const ChampionsApp());
@@ -19,27 +23,57 @@ void main() async {
 
 final supabase = Supabase.instance.client;
 
-class ChampionsApp extends StatelessWidget {
+class ChampionsApp extends StatefulWidget {
   const ChampionsApp({super.key});
+
+  @override
+  State<ChampionsApp> createState() => _ChampionsAppState();
+}
+
+class _ChampionsAppState extends State<ChampionsApp> {
+  bool _logado = false;
+  bool _verificandoStatus = true;
+  late final StreamSubscription<AuthState> _inscricaoAuth;
+
+  @override
+  void initState() {
+    super.initState();
+    
+    // 💡 Fica escutando o Supabase em tempo real. Se logar, muda a tela na hora!
+    _inscricaoAuth = supabase.auth.onAuthStateChange.listen((data) {
+      final Session? sessao = data.session;
+      setState(() {
+        _logado = sessao != null;
+        _verificandoStatus = false;
+      });
+    });
+  }
+
+  @override
+  void dispose() {
+    _inscricaoAuth.cancel(); // Limpa o ouvinte para evitar vazamento de memória
+    super.dispose();
+  }
 
   @override
   Widget build(BuildContext context) {
     return MaterialApp(
       debugShowCheckedModeBanner: false,
+      // 🎨 Mantendo o seu design escuro original que você mandou:
       theme: ThemeData.dark().copyWith(
         scaffoldBackgroundColor: const Color(0xFF121212),
         primaryColor: Colors.greenAccent,
       ),
-      // Se já houver sessão ativa na inicialização, abre o ranking. Caso contrário, login.
-      home: supabase.auth.currentSession == null 
-          ? const TelaLogin() 
-          : const TelaPrincipal(),
+      // Enquanto o Supabase confere o status, mostra um loading. Depois decide a tela.
+      home: _verificandoStatus
+          ? const Scaffold(body: Center(child: CircularProgressIndicator(color: Colors.greenAccent)))
+          : (_logado ? const TelaPrincipal() : const TelaLogin()),
     );
   }
 }
 
 // =====================================================================
-// 1. TELA DE LOGIN (COM ESCUTA ATIVA DE REDIRECIONAMENTO)
+// 1. TELA DE LOGIN (COM DESIGN ATUALIZADO CIRCUITO FITNESS)
 // =====================================================================
 class TelaLogin extends StatefulWidget {
   const TelaLogin({super.key});
@@ -50,87 +84,121 @@ class TelaLogin extends StatefulWidget {
 
 class _TelaLoginState extends State<TelaLogin> {
   bool _carregando = false;
-  late final StreamSubscription<AuthState> _authSubscription;
-
-  @override
-  void initState() {
-    super.initState();
-    // Escuta ativamente as mudanças de autenticação (captura o retorno da Web)
-    _authSubscription = supabase.auth.onAuthStateChange.listen((data) {
-      final Session? session = data.session;
-      if (session != null && mounted) {
-        Navigator.pushReplacement(
-          context,
-          MaterialPageRoute(builder: (context) => const TelaPrincipal()),
-        );
-      }
-    });
-  }
-
-  @override
-  void dispose() {
-    _authSubscription.cancel();
-    super.dispose();
-  }
 
   Future<void> _fazerLoginComGoogle() async {
+    if (_carregando) return;
     setState(() => _carregando = true);
-    try {
-      final String urlAtual = Uri.base.origin;
 
-      // Fluxo limpo e nativo para Web
+    try {
+      final String URLdeRedirecionamento = kIsWeb 
+          ? Uri.base.origin 
+          : 'io.supabase.flutter://login-callback';
+
       await supabase.auth.signInWithOAuth(
         OAuthProvider.google,
-        redirectTo: urlAtual,
+        redirectTo: URLdeRedirecionamento,
+        authScreenLaunchMode: kIsWeb 
+            ? LaunchMode.platformDefault 
+            : LaunchMode.externalApplication,
       );
-      
     } catch (e) {
-      print("Erro capturado no login: $e");
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(content: Text("Erro ao logar com Google: $e")),
         );
       }
+    } finally {
       if (mounted) setState(() => _carregando = false);
     }
   }
-  
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      body: Center(
+      // 🎨 Cor de fundo escura idêntica à textura da pedra do seu modelo
+      backgroundColor: const Color(0xFF222831), 
+      body: SafeArea(
         child: Padding(
-          padding: const EdgeInsets.all(24.0),
+          padding: const EdgeInsets.symmetric(horizontal: 24.0),
           child: Column(
             mainAxisAlignment: MainAxisAlignment.center,
+            crossAxisAlignment: CrossAxisAlignment.center,
             children: [
-              const Text("🏆", style: TextStyle(fontSize: 64)),
+              const Spacer(),
+              
+              // 🖼️ A sua Logo centralizada (Buscando da pasta assets)
+              Center(
+                child: Image.asset(
+                  'assets/logo.png',
+                  height: 180, // Tamanho ideal para o M55
+                  fit: BoxFit.contain, // 🛠️ CORREÇÃO: BoxFit em vez de ContentFit
+                ),
+              ),
+              
               const SizedBox(height: 16),
-              const Text(
-                "CHAMPIONS LEAGUE",
-                style: TextStyle(fontSize: 28, fontWeight: FontWeight.bold, letterSpacing: 2),
+              
+              // 🟢 O subtítulo verde em caixa alta do seu modelo
+              Text(
+                "O RANKING DOS MELHORES",
+                textAlign: TextAlign.center,
+                style: TextStyle(
+                  color: Colors.green.shade700,
+                  fontSize: 15,
+                  fontWeight: FontWeight.bold,
+                  letterSpacing: 1.2, // Espaçamento elegante entre as letras
+                ),
               ),
-              const Text(
-                "DOS BAIRROS",
-                style: TextStyle(fontSize: 16, color: Colors.greenAccent, fontWeight: FontWeight.w500),
-              ),
-              const SizedBox(height: 48),
-              _carregando
-                  ? const CircularProgressIndicator(color: Colors.greenAccent)
-                  : ElevatedButton.icon(
-                      style: ElevatedButton.styleFrom(
-                        backgroundColor: Colors.white,
-                        foregroundColor: Colors.black,
-                        minimumSize: const Size(double.infinity, 50),
-                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
-                      ),
-                      onPressed: _fazerLoginComGoogle,
-                      icon: const Icon(Icons.g_mobiledata, size: 32, color: Colors.redAccent),
-                      label: const Text(
-                        "Entrar com o Google",
-                        style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
-                      ),
+              
+              const Spacer(),
+              
+              // 🔘 Botão de Login do Google Premium e arredondado igual ao print
+              SizedBox(
+                width: double.infinity,
+                height: 54,
+                child: ElevatedButton(
+                  onPressed: _carregando ? null : _fazerLoginComGoogle,
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: Colors.white,
+                    foregroundColor: Colors.black87,
+                    elevation: 4,
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(12), // Bordas suaves do modelo
                     ),
+                  ),
+                  child: _carregando
+                      ? const SizedBox(
+                          width: 24,
+                          height: 24,
+                          child: CircularProgressIndicator(color: Colors.black54, strokeWidth: 2.5),
+                        )
+                      : Row(
+                          mainAxisAlignment: MainAxisAlignment.center,
+                          children: [
+                            // Letra "G" vermelha estilizada do Google
+                            Text(
+                              "G ",
+                              style: TextStyle(
+                                color: Colors.red.shade600,
+                                fontSize: 20,
+                                fontWeight: FontWeight.w800, // 🛠️ CORREÇÃO: FontWeight.w800 em vez de extrabold
+                                fontFamily: 'sans-serif',
+                              ),
+                            ),
+                            const SizedBox(width: 8),
+                            const Text(
+                              "Entrar com o Google",
+                              style: TextStyle(
+                                fontSize: 16,
+                                fontWeight: FontWeight.w600,
+                                letterSpacing: 0.2,
+                              ),
+                            ),
+                          ],
+                        ),
+                ),
+              ),
+              
+              const SizedBox(height: 32), // Espaço inferior para o botão respirar
             ],
           ),
         ),
