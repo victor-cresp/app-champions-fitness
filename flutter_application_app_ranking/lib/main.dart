@@ -27,17 +27,42 @@ class _ChampionsAppState extends State<ChampionsApp> {
   bool _verificandoStatus = true;
   late final StreamSubscription<AuthState> _inscricaoAuth;
 
-  @override
+@override
   void initState() {
     super.initState();
     
-    // Fica escutando o Supabase em tempo real através da instância centralizada
-    _inscricaoAuth = supabase.auth.onAuthStateChange.listen((data) {
-      final Session? sessao = data.session;
+    // 1. Faz uma checagem imediata se já existe uma sessão guardada no dispositivo
+    final sessaoAtual = supabase.auth.currentSession;
+    if (sessaoAtual != null) {
       setState(() {
-        _logado = sessao != null;
+        _logado = true;
         _verificandoStatus = false;
       });
+    }
+    
+    // 2. Fica escutando as mudanças (como o retorno do Google Login)
+    _inscricaoAuth = supabase.auth.onAuthStateChange.listen((data) {
+      final Session? sessao = data.session;
+      final AuthChangeEvent evento = data.event;
+
+      // Se o evento for de token recuperado ou login efetuado com sucesso
+      if (sessao != null) {
+        setState(() {
+          _logado = true;
+          _verificandoStatus = false;
+        });
+      } else if (evento == AuthChangeEvent.signedOut) {
+        // Apenas desloga se o evento for explicitamente de Logout
+        setState(() {
+          _logado = false;
+          _verificandoStatus = false;
+        });
+      } else {
+        // Evita que estados intermediários joguem o usuário para o login antes da hora
+        setState(() {
+          _verificandoStatus = false;
+        });
+      }
     });
   }
 
