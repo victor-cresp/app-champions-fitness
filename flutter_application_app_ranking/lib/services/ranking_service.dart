@@ -2,7 +2,7 @@ import 'dart:convert';
 import 'package:http/http.dart' as http;
 
 class RankingService {
-  final String urlBackend = "http://127.0.0.1:8080";
+  final String urlBackend = "https://champions-fitness-backend.onrender.com";
 
   // Busca a lista de ranking por bairro
   Future<List<dynamic>> buscarRanking(String bairro) async {
