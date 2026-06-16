@@ -9,6 +9,7 @@ environment:
 dependencies:
   flutter:
     sdk: flutter
+  flutter_native_splash: ^2.4.8
   geolocator: ^14.0.3
   http: ^1.6.0
   supabase_flutter: ^2.14.2
@@ -33,3 +34,9 @@ flutter_launcher_icons:
   remove_alpha_ios: true # Remove a transparência no iOS e coloca fundo branco
   adaptive_icon_background: "#1F1F1F" # Cor de fundo no Android
   adaptive_icon_foreground: "assets/logo.png" # A logo por cima da cor no Android
+
+flutter_native_splash:
+  color: "#1F1F1F" # Dica: Coloquei a mesma cor escura do ícone pra combinar, mas mude para "#FFFFFF" se preferir fundo branco!
+  image: assets/logo.png
+  android_12:
+    image: assets/logo.png
