@@ -43,14 +43,21 @@ class _TelaLoginState extends State<TelaLogin> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
+      // 🧱 Removi o fundo de pedra que causava embaçamento
       body: Container(
         width: double.infinity,
         height: double.infinity,
         decoration: const BoxDecoration(
-          // 🧱 Carrega a sua textura de pedra limpa cobrindo a tela toda
-          image: DecorationImage(
-            image: AssetImage('assets/fundo_pedra.png'),
-            fit: BoxFit.cover, 
+          // ✨ NOVO: Adicionei um degradê moderno e limpo
+          // Começa em um cinza muito escuro (topo-esqueda) e termina no preto (base-direita)
+          gradient: LinearGradient(
+            begin: Alignment.topLeft,
+            end: Alignment.bottomRight,
+            colors: [
+              Color(0xFF212121), // Cinza Chumbo muito escuro
+              Colors.black,       // Preto total
+            ],
+            stops: [0.1, 0.9], // Controla onde a transição de cor acontece
           ),
         ),
         child: SafeArea(
@@ -63,12 +70,12 @@ class _TelaLoginState extends State<TelaLogin> {
                 // Spacer cria um espaçamento elástico ideal para centralizar a logo verticalmente
                 const Spacer(flex: 3),
                 
-                // 🖼️ Sua logo recortada (transparente) centralizada e protegida contra esticamento na Web
+                // 🖼️ Sua logo recortada (transparente) centralizada e protegida
                 Center(
                   child: Container(
                     constraints: const BoxConstraints(maxWidth: 400),
                     child: Image.asset(
-                      'assets/logo.png', 
+                      'assets/logo.png', // Mantenha o arquivo original
                       fit: BoxFit.contain, 
                     ),
                   ),
@@ -76,7 +83,7 @@ class _TelaLoginState extends State<TelaLogin> {
                 
                 const SizedBox(height: 16),
                 
-                // 🟢 Subtítulo verde idêntico ao modelo original
+                // 🟢 Subtítulo verde idêntico ao modelo original e preservado
                 Text(
                   "O RANKING DOS MELHORES",
                   textAlign: TextAlign.center,
@@ -98,7 +105,7 @@ class _TelaLoginState extends State<TelaLogin> {
                 // Empurra o botão do Google de forma suave para repousar no rodapé
                 const Spacer(flex: 4),
                 
-                // 🔘 Botão do Google Premium
+                // 🔘 Botão do Google Premium (preservado)
                 Center(
                   child: Container(
                     constraints: const BoxConstraints(maxWidth: 400),
@@ -147,7 +154,7 @@ class _TelaLoginState extends State<TelaLogin> {
                   ),
                 ),
                 
-                const SizedBox(height: 24), // Margem final de segurança da barra de navegação do celular
+                const SizedBox(height: 24), // Margem final de segurança
               ],
             ),
           ),
