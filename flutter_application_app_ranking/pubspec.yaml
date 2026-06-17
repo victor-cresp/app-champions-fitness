@@ -13,6 +13,7 @@ dependencies:
   geolocator: ^14.0.3
   http: ^1.6.0
   supabase_flutter: ^2.14.2
+  flutter_dotenv: ^5.1.0
 
 
 dev_dependencies:
@@ -26,6 +27,7 @@ flutter:
   assets:
     - assets/logo.png
     - assets/fundo_pedra.png
+    - .env
 
 flutter_launcher_icons:
   android: true

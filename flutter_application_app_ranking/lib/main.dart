@@ -1,15 +1,25 @@
 import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
+import 'package:flutter_dotenv/flutter_dotenv.dart';
 
 import 'core/supabase_client.dart';
 import 'views/tela_login.dart';
 import 'views/tela_principal.dart';
 
 void main() async {
+  // 1. Garante que os bindings do Flutter estão prontos
   WidgetsFlutterBinding.ensureInitialized();
 
-  // Chama a inicialização externa do Supabase
+  try {
+    // 2. Carrega o arquivo .env e ESPERA terminar (com o await)
+    await dotenv.load(fileName: ".env");
+    print("DEBUG: .env carregado com sucesso!"); // Log de segurança no console
+  } catch (e) {
+    print("DEBUG: Erro ao carregar o arquivo .env: $e");
+  }
+
+  // 3. Só depois de carregar o .env, chama a inicialização do Supabase
   await initSupabase();
 
   runApp(const ChampionsApp());

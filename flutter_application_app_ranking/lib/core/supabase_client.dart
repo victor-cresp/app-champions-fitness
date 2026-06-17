@@ -1,10 +1,11 @@
+import 'package:flutter_dotenv/flutter_dotenv.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
-// Inicialização centralizada do Supabase
+// Inicialização centralizada do Supabase lendo do .env
 Future<void> initSupabase() async {
   await Supabase.initialize(
-    url: 'https://sixinlpheadgnxguutvr.supabase.co',
-    anonKey: 'sb_publishable_7XYEQNIfSXrbfh8CH1BVkA_jxOYzGGo',
+    url: dotenv.env['SUPABASE_URL'] ?? '',
+    publishableKey: dotenv.env['SUPABASE_ANON_KEY'] ?? '', // <-- MUDOU AQUI (Troque anonKey por publishableKey)
     authOptions: const FlutterAuthClientOptions(
       authFlowType: AuthFlowType.pkce,
     ),
