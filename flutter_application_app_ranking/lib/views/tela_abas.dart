@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import '../core/supabase_client.dart';
 import 'tela_minhas_apostas.dart'; // Vamos criar essa tela a seguir
 import 'tela_apostas_disponiveis.dart';
+import 'tela_perfil.dart';
 
 class TelaAbas extends StatefulWidget {
   const TelaAbas({super.key});
@@ -21,9 +22,9 @@ class _TelaAbasState extends State<TelaAbas> {
 
   // Lista atualizada com as 4 telas do aplicativo
   List<Widget> get _telas => [
-    TelaMinhasApostas(onIrParaNovaAposta: () => _mudarAba(1)), // Aba 0: Minhas Apostas
-    const TelaApostasDisponiveis(),                            // 🛠️ MUDOU AQUI: Aba 1 Conectada!
-    const Center(child: Text("Tela de Perfil em Desenvolvimento", style: TextStyle(color: Colors.white70, fontSize: 16))), // Aba 2
+    TelaMinhasApostas(onIrParaNovaAposta: () => _mudarAba(1)), // Aba 0
+    const TelaApostasDisponiveis(),                            // Aba 1
+    const TelaPerfil(),                                        // 🛠️ ATUALIZADO AQUI! Aba 2 Conectada
     const Center(child: Text("Tela de Configurações em Desenvolvimento", style: TextStyle(color: Colors.white70, fontSize: 16))), // Aba 3
   ];
 
