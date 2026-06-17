@@ -98,7 +98,7 @@ class _TelaMinhasApostasState extends State<TelaMinhasApostas> {
                     shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
                   ),
                   label: const Text(
-                    "NOVA APOSTA",
+                    "NOVO DESAFIO",
                     style: TextStyle(color: Colors.black, fontWeight: FontWeight.bold, letterSpacing: 0.5),
                   ),
                 ),
