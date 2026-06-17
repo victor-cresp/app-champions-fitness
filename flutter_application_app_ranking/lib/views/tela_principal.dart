@@ -26,6 +26,8 @@ class _TelaPrincipalState extends State<TelaPrincipal> {
     _carregarDados();
   }
 
+  
+
   Future<void> _carregarDados() async {
     setState(() => _carregandoRanking = true);
     try {
@@ -39,51 +41,57 @@ class _TelaPrincipalState extends State<TelaPrincipal> {
     }
   }
 
-  Future<void> _alternarTreino() async {
-    final String? usuarioId = supabase.auth.currentUser?.id;
+ Future<void> _alternarTreino() async {
+  final String? usuarioId = supabase.auth.currentUser?.id;
 
-    if (usuarioId == null) {
-      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text("Usuário não identificado.")));
+  if (usuarioId == null) {
+    ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text("Usuário não identificado.")));
+    return;
+  }
+
+  if (!_treinando) {
+    LocationPermission permission = await Geolocator.requestPermission();
+    if (permission == LocationPermission.denied || permission == LocationPermission.deniedForever) {
       return;
     }
+    setState(() {
+      _treinando = true;
+      _timestampInicio = DateTime.now();
+    });
+  } else {
+    setState(() => _carregandoRanking = true);
+    Position position = await Geolocator.getCurrentPosition();
+    int minutosTreinados = DateTime.now().difference(_timestampInicio!).inMinutes;
+    if (minutosTreinados == 0) minutosTreinados = 55; // Mantendo sua regra de segurança
 
-    if (!_treinando) {
-      LocationPermission permission = await Geolocator.requestPermission();
-      if (permission == LocationPermission.denied || permission == LocationPermission.deniedForever) {
-        return;
-      }
-      setState(() {
-        _treinando = true;
-        _timestampInicio = DateTime.now();
-      });
+    // Dados mapeados perfeitamente para as colunas da sua tabela no Supabase
+    final dadosTreino = {
+      "usuario_id": usuarioId, 
+      "bairro_id": bairroFoco,
+      "academia_latitude": position.latitude,
+      "academia_longitude": position.longitude,
+      "tempo_total_minutos": minutosTreinados,
+      "percentual_movimento": 85
+    };
+
+    final sucesso = await _rankingService.enviarTreino(dadosTreino);
+    if (sucesso) {
+      await _carregarDados(); // Recarrega o ranking atualizado direto do banco
     } else {
-      setState(() => _carregandoRanking = true);
-      Position position = await Geolocator.getCurrentPosition();
-      int minutosTreinados = DateTime.now().difference(_timestampInicio!).inMinutes;
-      if (minutosTreinados == 0) minutosTreinados = 55; 
-
-      final dadosTreino = {
-        "usuario_id": usuarioId, 
-        "bairro_id": bairroFoco,
-        "academia_latitude": position.latitude,
-        "academia_longitude": position.longitude,
-        "tempo_total_minutos": minutosTreinados,
-        "percentual_movimento": 85
-      };
-
-      final sucesso = await _rankingService.enviarTreino(dadosTreino);
-      if (sucesso) {
-        await _carregarDados();
-      } else {
-        setState(() => _carregandoRanking = false);
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text("Erro ao salvar treino. Verifique o RLS do banco.")),
+        );
       }
-
-      setState(() {
-        _treinando = false;
-        _timestampInicio = null;
-      });
+      setState(() => _carregandoRanking = false);
     }
+
+    setState(() {
+      _treinando = false;
+      _timestampInicio = null;
+    });
   }
+}
 
   @override
   Widget build(BuildContext context) {
