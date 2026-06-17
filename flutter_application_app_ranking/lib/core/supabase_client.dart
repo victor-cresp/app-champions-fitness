@@ -7,7 +7,7 @@ Future<void> initSupabase() async {
     url: dotenv.env['SUPABASE_URL'] ?? '',
     publishableKey: dotenv.env['SUPABASE_ANON_KEY'] ?? '', // <-- MUDOU AQUI (Troque anonKey por publishableKey)
     authOptions: const FlutterAuthClientOptions(
-      authFlowType: AuthFlowType.pkce,
+      authFlowType: AuthFlowType.implicit,
     ),
   );
 }

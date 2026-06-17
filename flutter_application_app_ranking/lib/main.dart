@@ -2,7 +2,7 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:flutter_dotenv/flutter_dotenv.dart';
-
+import 'views/tela_abas.dart';
 import 'core/supabase_client.dart';
 import 'views/tela_login.dart';
 import 'views/tela_principal.dart';
@@ -90,9 +90,10 @@ class _ChampionsAppState extends State<ChampionsApp> {
         scaffoldBackgroundColor: const Color(0xFF121212),
         primaryColor: Colors.greenAccent,
       ),
+      // Se estiver verificando o status, mostra um loading, se logado vai para a TelaAbas, senão TelaLogin
       home: _verificandoStatus
           ? const Scaffold(body: Center(child: CircularProgressIndicator(color: Colors.greenAccent)))
-          : (_logado ? const TelaPrincipal() : const TelaLogin()),
+          : (_logado ? const TelaAbas() : const TelaLogin()), // <-- ALTERADO AQUI (De TelaPrincipal para TelaAbas)
     );
   }
 }
