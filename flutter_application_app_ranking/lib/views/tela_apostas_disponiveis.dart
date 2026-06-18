@@ -175,7 +175,7 @@ class _TelaApostasDisponiveisState extends State<TelaApostasDisponiveis> {
             dataInicio: DateTime.tryParse(item['data_inicio'] ?? '') ?? DateTime.now().add(const Duration(days: 3)),
             dataFim: DateTime.tryParse(item['data_fim'] ?? '') ?? DateTime.now().add(const Duration(days: 30)),
             valorEntrada: double.tryParse(item['valor_entrada']?.toString() ?? '') ?? 25.00,
-            totalParticipantes: int.tryParse(item['total_participantes']?.toString() ?? '') ?? 0,
+            totalParticipantes: int.tryParse(item['atletas_inscritos']?.toString() ?? '') ?? 0,
           );
 
           return _cardDesafioReal(desafio, jaParticipa);
