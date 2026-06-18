@@ -211,13 +211,18 @@ class _TelaPerfilState extends State<TelaPerfil> {
     );
   }
 
-  InputDecoration _inputDecoration(String label, IconData icon) {
+  InputDecoration _inputDecoration(String label, IconData iconData) {
     return InputDecoration(
       labelText: label,
-      prefixIcon: Icon(icon, color: Colors.greenAccent),
+      
+      // 🛠️ ALTERADO AQUI: Mudamos de 'prefixIcon' para 'icon'. 
+      // Isso joga o ícone para fora da caixa e o força a se alinhar perfeitamente ao topo na Web!
+      icon: Icon(iconData, color: Colors.greenAccent),
+      
       labelStyle: const TextStyle(color: Colors.white70),
       filled: true,
       fillColor: Colors.white.withValues(alpha: 0.05),
+      contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 16),
       border: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: BorderSide.none),
       focusedBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: const BorderSide(color: Colors.greenAccent)),
     );
