@@ -15,7 +15,7 @@ class TelaAbas extends StatefulWidget {
 class _TelaAbasState extends State<TelaAbas> {
   int _abaAtual = 0;
   bool _isAdmin = false;
-  String _nomeUsuario = "Atleta"; // Nome padrão caso demore a carregar
+  String _nomeUsuario = "Atleta"; 
 
   void _mudarAba(int index) {
     setState(() => _abaAtual = index);
@@ -27,13 +27,11 @@ class _TelaAbasState extends State<TelaAbas> {
     _buscarDadosIniciais();
   }
 
-// Busca o status de admin e o nome do usuário de forma assíncrona garantindo atualização de tela
   Future<void> _buscarDadosIniciais() async {
     final uid = supabase.auth.currentUser?.id;
     if (uid == null) return;
 
     try {
-      // Fazemos a query exata que a tela de perfil faz com sucesso
       final dados = await supabase
           .from('usuarios')
           .select('is_admin, nome')
@@ -46,7 +44,6 @@ class _TelaAbasState extends State<TelaAbas> {
           
           final nomeCompleto = dados['nome'];
           if (nomeCompleto != null && nomeCompleto.toString().trim().isNotEmpty) {
-            // Pega o primeiro nome e garante que o Flutter atualize o topo do app!
             _nomeUsuario = nomeCompleto.toString().trim().split(' ')[0];
           } else {
             _nomeUsuario = "Atleta";
@@ -54,7 +51,6 @@ class _TelaAbasState extends State<TelaAbas> {
         });
       }
     } catch (e) {
-      // Fallback de segurança se a internet falhar
       if (mounted) {
         setState(() {
           _nomeUsuario = "Atleta";
@@ -66,7 +62,8 @@ class _TelaAbasState extends State<TelaAbas> {
   List<Widget> _obterTelas() {
     final telas = [
       TelaMinhasApostas(onIrParaNovaAposta: () => _mudarAba(1)), 
-      const TelaApostasDisponiveis(),                            
+      // 🚀 ATUALIZADO: Passando o redirecionamento para a aba "Meus Desafios" (Índice 0)
+      TelaApostasDisponiveis(onDesafioInscrito: () => _mudarAba(0)),                            
       const TelaPerfil(),                                        
       const Center(child: Text("Tela de Configurações em Desenvolvimento", style: TextStyle(color: Colors.white70, fontSize: 16))), 
     ];
@@ -89,7 +86,7 @@ class _TelaAbasState extends State<TelaAbas> {
       appBar: AppBar(
         backgroundColor: const Color(0xFF121212),
         elevation: 0,
-        toolbarHeight: 70, // Dá um pouquinho mais de espaço para o topo respirar
+        toolbarHeight: 70, 
         title: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           mainAxisAlignment: MainAxisAlignment.center,
@@ -98,7 +95,6 @@ class _TelaAbasState extends State<TelaAbas> {
               "Olá,",
               style: TextStyle(fontSize: 14, color: Colors.white54, fontWeight: FontWeight.w400),
             ),
-            // 🚀 MENSAGEM DE BOAS-VINDAS DEVOLVIDA COM ESTILO ESPORTIVO
             Text(
               _nomeUsuario,
               style: const TextStyle(fontSize: 22, fontWeight: FontWeight.bold, color: Colors.white, letterSpacing: 0.5),
@@ -143,9 +139,7 @@ class _TelaAbasState extends State<TelaAbas> {
           const SizedBox(width: 16),
         ],
       ),
-      
       body: SafeArea(child: todasAsTelas[_abaAtual]),
-      
       bottomNavigationBar: BottomNavigationBar(
         currentIndex: _abaAtual,
         onTap: (index) => setState(() => _abaAtual = index),

@@ -110,11 +110,23 @@ class _TelaAdmState extends State<TelaAdm> {
   }
 
   Future<void> _selecionarData(BuildContext context, int tipoData) async {
+    // Define os limites padrão do calendário
+    DateTime dataInicialCalendario = DateTime.now();
+    DateTime primeiroDiaDisponivel = DateTime.now().subtract(const Duration(days: 365));
+    DateTime ultimoDiaDisponivel = DateTime.now().add(const Duration(days: 365));
+
+    // 🚀 SE FOR A DATA LIMITE DE INSCRIÇÃO: Trava o range baseado na data de início
+    if (tipoData == 2 && _dataInicioSelecionada != null) {
+      dataInicialCalendario = _dataInicioSelecionada!;
+      primeiroDiaDisponivel = _dataInicioSelecionada!; // Não pode ser antes do início
+      ultimoDiaDisponivel = _dataInicioSelecionada!.add(const Duration(days: 5)); // No máximo 5 dias depois!
+    }
+
     final DateTime? escolhida = await showDatePicker(
       context: context,
-      initialDate: DateTime.now(),
-      firstDate: DateTime.now().subtract(const Duration(days: 365)),
-      lastDate: DateTime.now().add(const Duration(days: 365)),
+      initialDate: dataInicialCalendario,
+      firstDate: primeiroDiaDisponivel,
+      lastDate: ultimoDiaDisponivel,
     );
 
     if (escolhida != null) {
@@ -124,6 +136,9 @@ class _TelaAdmState extends State<TelaAdm> {
         if (tipoData == 1) {
           _dataInicioSelecionada = escolhida;
           _dataInicioController.text = dataFormatada;
+          // Limpa a data limite se ela ficar inválida ao mudar a data de início
+          _dataLimiteSelecionada = null;
+          _dataLimiteInscricaoController.clear();
         } else if (tipoData == 2) {
           _dataLimiteSelecionada = escolhida;
           _dataLimiteInscricaoController.text = dataFormatada;
@@ -173,6 +188,20 @@ class _TelaAdmState extends State<TelaAdm> {
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(
             content: Text("❌ A data de término não pode ser antes da data de início!"),
+            backgroundColor: Colors.redAccent,
+          ),
+        );
+        return;
+      }
+    }
+
+    if (_dataLimiteSelecionada != null && _dataInicioSelecionada != null) {
+      final diferencaDiasInscricao = _dataLimiteSelecionada!.difference(_dataInicioSelecionada!).inDays;
+      
+      if (diferencaDiasInscricao > 5) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text("❌ A data limite de inscrição pode ser de no máximo 5 dias após o início do desafio!"),
             backgroundColor: Colors.redAccent,
           ),
         );

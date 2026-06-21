@@ -131,12 +131,19 @@ class _TelaMinhasApostasState extends State<TelaMinhasApostas> {
 
     final agora = DateTime.now();
 
+    // 📁 SUBSTITUA esse bloco de filtragem específico dentro do método build da sua 'tela_minhas_apostas.dart':
     final inscricoesValidas = _minhasInscricoes.where((inscricao) {
       final desafio = inscricao['apostas_disponiveis'] ?? {};
 
+      // 🚀 TRAVA DE SEGURANÇA 1: Se o JOIN falhar ou vier vazio em ambiente de teste, força o card a aparecer!
+      if (desafio.isEmpty) {
+        return true; 
+      }
+
+      // Se o admin deletou o desafio de forma lógica, ele some da aba do usuário
       if (desafio['is_deleted'] == true) {
-          return false; // Se o admin deletou o desafio, ele some da aba do usuário na hora!
-        }
+        return false; 
+      }
 
       final dataLimite = DateTime.tryParse(desafio['data_limite_inscricao'] ?? '') ?? agora;
       
@@ -146,8 +153,17 @@ class _TelaMinhasApostasState extends State<TelaMinhasApostas> {
       final bool irregular = (statusPagamento == 'pendente' || statusVideo == 'nao_enviado' || statusVideo == 'reprovado');
       final bool prazoEncerrado = agora.isAfter(dataLimite);
 
+      // 🚀 TRAVA DE SEGURANÇA 2: Modificada para não expulsar o usuário se o desafio começou recentemente (tolerância de carência)
       if (irregular && prazoEncerrado) {
-        return false; 
+        final dataInicio = DateTime.tryParse(desafio['data_inicio'] ?? '') ?? agora;
+        final diferencaDiasDoInicio = agora.difference(dataInicio).inDays;
+
+        // Se o desafio começou a menos de 5 dias atrás, NÃO esconde o card. Dá tempo do usuário pagar/mandar o vídeo!
+        if (diferencaDiasDoInicio <= 5) {
+          return true;
+        }
+
+        return false; // Fora do prazo e da carência de 5 dias -> Some com o card
       }
       return true;
     }).toList();

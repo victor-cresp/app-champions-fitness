@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import '../core/supabase_client.dart';
+import 'detalhe_desafios.dart';
 
-// 🚀 ENUM E MODELO INTELIGENTE DE ESTÁGIOS INJETADOS AQUI
 enum EstagioDesafio { divulgacao, bloqueio, jogo, finalizado }
 
 class DesafioModel {
@@ -33,8 +33,7 @@ class DesafioModel {
     } else if (agora.isAfter(dataLimiteInscricao) && agora.isBefore(dataInicio)) {
       return EstagioDesafio.bloqueio;
     } else if (agora.isAfter(dataInicio) && agora.isBefore(dataFim)) {
-      // Regra dos Atrasados (Late Joiners): Permite entrar até o 7º dia de jogo
-      final limiteAtrasados = dataInicio.add(const Duration(days: 7));
+      final limiteAtrasados = dataInicio.add(const Duration(days: 5));
       if (agora.isBefore(limiteAtrasados)) {
         return EstagioDesafio.divulgacao; 
       }
@@ -46,7 +45,9 @@ class DesafioModel {
 }
 
 class TelaApostasDisponiveis extends StatefulWidget {
-  const TelaApostasDisponiveis({super.key});
+  final VoidCallback? onDesafioInscrito;
+
+  const TelaApostasDisponiveis({super.key, this.onDesafioInscrito});
 
   @override
   State<TelaApostasDisponiveis> createState() => _TelaApostasDisponiveisState();
@@ -100,23 +101,41 @@ class _TelaApostasDisponiveisState extends State<TelaApostasDisponiveis> {
     }
   }
 
-  Future<void> _inscreverNoDesafio(String desafioId) async {
+  Future<void> _inscreverNoDesafio(DesafioModel desafio, Map<String, dynamic> itemOriginal) async {
     final uid = supabase.auth.currentUser?.id;
     if (uid == null) return;
 
     try {
-      await supabase.from('participantes_apostas').insert({
-        'aposta_id': desafioId,
+      final novaInscricao = await supabase.from('participantes_apostas').insert({
+        'aposta_id': desafio.id,
         'usuario_id': uid,
-      });
+      }).select().single(); 
 
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text("Inscrição confirmada! Vá para 'Meus Desafios' para acompanhar."),
-            backgroundColor: Colors.green,
-          ),
-        );
+        final agora = DateTime.now();
+        
+        if (agora.isAfter(desafio.dataInicio)) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(content: Text("Inscrição realizada! Abra os detalhes para regularizar seu pagamento e peso."), backgroundColor: Colors.orangeAccent),
+          );
+          
+          Navigator.push(
+            context,
+            MaterialPageRoute(
+              builder: (context) => TelaDetalhesDesafio(
+                inscricaoData: novaInscricao, 
+                desafioData: itemOriginal,    
+              ),
+            ),
+          );
+        } else {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(content: Text("Inscrição confirmada! Redirecionando para seus desafios..."), backgroundColor: Colors.green),
+          );
+          if (widget.onDesafioInscrito != null) {
+            widget.onDesafioInscrito!();
+          }
+        }
       }
       _carregarDesafios();
     } catch (e) {
@@ -128,7 +147,6 @@ class _TelaApostasDisponiveisState extends State<TelaApostasDisponiveis> {
     }
   }
 
-  // Funções fictícias de navegação para as próximas fases que você vai criar
   void _irParaTelaPesagem(String id) {
     ScaffoldMessenger.of(context).showSnackBar(
       const SnackBar(content: Text("Abrindo tela de pesagem inicial..."), backgroundColor: Colors.orangeAccent)
@@ -167,7 +185,6 @@ class _TelaApostasDisponiveisState extends State<TelaApostasDisponiveis> {
           final String desafioId = item['id']?.toString() ?? '';
           final bool jaParticipa = _desafiosInscritosIds.contains(desafioId);
 
-          // 🛠️ MAPEAMENTO DOS DADOS DA SUA VIEW PARA O MODELO INTELIGENTE
           final desafio = DesafioModel(
             id: desafioId,
             title: item['nome'] ?? 'Sem nome',
@@ -175,20 +192,18 @@ class _TelaApostasDisponiveisState extends State<TelaApostasDisponiveis> {
             dataInicio: DateTime.tryParse(item['data_inicio'] ?? '') ?? DateTime.now().add(const Duration(days: 3)),
             dataFim: DateTime.tryParse(item['data_fim'] ?? '') ?? DateTime.now().add(const Duration(days: 30)),
             valorEntrada: double.tryParse(item['valor_entrada']?.toString() ?? '') ?? 25.00,
-            totalParticipantes: int.tryParse(item['atletas_inscritos']?.toString() ?? '') ?? 0,
+            totalParticipantes: int.tryParse(item['total_participantes']?.toString() ?? '') ?? 0,
           );
 
-          return _cardDesafioReal(desafio, jaParticipa);
+          return _cardDesafioReal(desafio, jaParticipa, item);
         },
       ),
     );
   }
 
-  // 🚀 O NOVO CARD QUE MUDA SOZINHO BASEADO NA TEMPORADA ATUAL
-  // 🚀 CARD ATUALIZADO (Sem erros de alinhamento e com badge integrado)
-  // 🚀 CARD ATUALIZADO COM DATA LIMITE DE INSCRIÇÃO
-  Widget _cardDesafioReal(DesafioModel desafio, bool usuarioJaInscrito) {
+  Widget _cardDesafioReal(DesafioModel desafio, bool usuarioJaInscrito, Map<String, dynamic> itemOriginal) {    
     final estagio = desafio.estagio;
+    final agora = DateTime.now();
 
     Color corStatus;
     String textoStatus;
@@ -196,13 +211,19 @@ class _TelaApostasDisponiveisState extends State<TelaApostasDisponiveis> {
     bool botaoAtivo = true;
     Widget infoExtra;
 
-    // Formatação simples da data (Ex: 30/06)
     final String dataFormatada = "${desafio.dataLimiteInscricao.day.toString().padLeft(2, '0')}/${desafio.dataLimiteInscricao.month.toString().padLeft(2, '0')}";
+
+    int diasDeJogo = 0;
+    if (agora.isAfter(desafio.dataInicio)) {
+      diasDeJogo = agora.difference(desafio.dataInicio).inDays;
+    }
 
     switch (estagio) {
       case EstagioDesafio.divulgacao:
         corStatus = Colors.greenAccent;
-        textoStatus = "INSCRIÇÕES ABERTAS";
+        textoStatus = agora.isAfter(desafio.dataInicio) 
+            ? "COMEÇOU HÁ $diasDeJogo ${diasDeJogo == 1 ? 'DIA' : 'DIAS'}" 
+            : "INSCRIÇÕES ABERTAS";
         textoBotao = usuarioJaInscrito ? "VOCÊ JÁ ESTÁ DENTRO!" : "PARTICIPAR DO DESAFIO";
         botaoAtivo = !usuarioJaInscrito;
         infoExtra = Column(
@@ -217,7 +238,6 @@ class _TelaApostasDisponiveisState extends State<TelaApostasDisponiveis> {
               children: [
                 _buildBadgeParticipantes(desafio.totalParticipantes),
                 const SizedBox(width: 12),
-                // 📅 DATA LIMITE ADICIONADA AQUI
                 _buildBadgeDataLimite("Inscrições até: $dataFormatada", Colors.orangeAccent),
               ],
             ),
@@ -251,7 +271,7 @@ class _TelaApostasDisponiveisState extends State<TelaApostasDisponiveis> {
 
       case EstagioDesafio.jogo:
         corStatus = Colors.blueAccent;
-        textoStatus = "EM ANDAMENTO 🏃‍♂️";
+        textoStatus = "EM ANDAMENTO (HÁ $diasDeJogo ${diasDeJogo == 1 ? 'DIA' : 'DIAS'})";
         textoBotao = usuarioJaInscrito ? "VER MEU PROGRESSO" : "SALA BLOQUEADA";
         botaoAtivo = usuarioJaInscrito;
         infoExtra = Row(
@@ -335,7 +355,8 @@ class _TelaApostasDisponiveisState extends State<TelaApostasDisponiveis> {
               child: ElevatedButton(
                 onPressed: botaoAtivo ? () {
                   if (estagio == EstagioDesafio.divulgacao) {
-                    _inscreverNoDesafio(desafio.id);
+                    // 🚀 CORRIGIDO: Agora usa o 'itemOriginal' mapeado no parâmetro do card
+                    _inscreverNoDesafio(desafio, itemOriginal);
                   } else if (estagio == EstagioDesafio.bloqueio) {
                     _irParaTelaPesagem(desafio.id);
                   } else if (estagio == EstagioDesafio.jogo) {
@@ -363,7 +384,6 @@ class _TelaApostasDisponiveisState extends State<TelaApostasDisponiveis> {
     );
   }
 
-  // Widget auxiliar para as pessoas
   Widget _buildBadgeParticipantes(int total) {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
@@ -385,7 +405,6 @@ class _TelaApostasDisponiveisState extends State<TelaApostasDisponiveis> {
     );
   }
 
-  // 🛠️ NOVO WIDGET AUXILIAR PARA A DATA LIMITE (Mantém o padrão visual alinhado)
   Widget _buildBadgeDataLimite(String texto, Color cor) {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
