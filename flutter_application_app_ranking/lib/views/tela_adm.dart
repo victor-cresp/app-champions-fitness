@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:video_player/video_player.dart'; // 🚀 REQUISITO PARA O PLAYER INTEGRADO
 import '../core/supabase_client.dart';
 
 class TelaAdm extends StatefulWidget {
@@ -33,19 +34,33 @@ class _TelaAdmState extends State<TelaAdm> {
   final _buscaNomeController = TextEditingController(); 
   DateTimeRange? _filtroDataRange; 
 
-  // 🚀 NOVAS VARIÁVEIS PARA ABA DE MODERAÇÃO DE VÍDEOS
+  // 🚀 NOVAS VARIÁVEIS PARA ABA DE MODERAÇÃO DE VÍDEOS COM SUPORTE A PAGINAÇÃO
   List<dynamic> _videosParaAnalise = [];
   bool _carregandoVideos = false;
 
+  // 🚀 VARIÁVEIS DE PAGINAÇÃO DE ALTA PERFORMANCE (CORRIGIDO: INJETADAS NO STATE)
+  final int _itensPorPagina = 10; 
+  int _paginaAtual = 0;           
+  bool _temMaisDados = true;      
+  bool _carregandoMais = false;   
+  final ScrollController _scrollController = ScrollController(); 
+
   @override
-  void initState() {
+  void initState() { 
     super.initState();
-    _buscarDesafiosDoSupabase();
-    _buscarVideosParaAnalise(); // Carrega a fila de moderação
+    _buscarVideosParaAnalise(resetar: true); 
+
+    // Ouvinte da barra de rolagem (Dispara carregamento automático ao atingir 80% da tela)
+    _scrollController.addListener(() {
+      if (_scrollController.position.pixels >= _scrollController.position.maxScrollExtent * 0.8) {
+        _buscarVideosParaAnalise(resetar: false);
+      }
+    });
   }
 
   @override
   void dispose() {
+    _scrollController.dispose(); 
     _tituloController.dispose();
     _descricaoController.dispose();
     _valorController.dispose();
@@ -53,49 +68,95 @@ class _TelaAdmState extends State<TelaAdm> {
     _dataLimiteInscricaoController.dispose();
     _dataFimController.dispose();
     _buscaNomeController.dispose(); 
-    super.dispose();
+    super.dispose(); 
   }
 
-  // 🚀 BUSCA INSCRIÇÕES QUE PRECISAM DE AVALIAÇÃO (status_video = em_analise)
-  Future<void> _buscarVideosParaAnalise() async {
+  // 🚀 BUSCA INSCRIÇÕES COM PAGINAÇÃO E INFINITE SCROLL (.range() NATIVO DO SUPABASE)
+  Future<void> _buscarVideosParaAnalise({bool resetar = false}) async {
     if (!mounted) return;
-    setState(() => _carregandoVideos = true);
+    if (_carregandoVideos || _carregandoMais) return;
+    if (!resetar && !_temMaisDados) return;
+
+    setState(() {
+      if (resetar) {
+        _carregandoVideos = true;
+        _paginaAtual = 0;
+        _temMaisDados = true;
+        _videosParaAnalise = []; 
+      } else {
+        _carregandoMais = true;
+      }
+    });
+
     try {
-      // Faz o Join trazendo os dados da tabela usuarios e apostas_disponiveis
+      final int de = _paginaAtual * _itensPorPagina;
+      final int ate = de + _itensPorPagina - 1;
+
+      print("ADM: Buscando bloco de $de até $ate...");
+
       final dados = await supabase
           .from('participantes_apostas')
           .select('*, usuarios(nome), apostas_disponiveis(nome)')
-          .eq('status_video', 'em_analise');
+          .eq('status_video', 'em_analise')
+          .order('created_at', ascending: true)
+          .range(de, ate);
 
       setState(() {
-        _videosParaAnalise = dados;
+        _videosParaAnalise.addAll(dados);
         _carregandoVideos = false;
+        _carregandoMais = false;
+        
+        if (dados.length < _itensPorPagina) {
+          _temMaisDados = false;
+        } else {
+          _paginaAtual++; 
+        }
       });
     } catch (e) {
-      setState(() => _carregandoVideos = false);
+      setState(() {
+        _carregandoVideos = false;
+        _carregandoMais = false;
+      });
       print("Erro ao carregar moderação: $e");
     }
   }
 
-  // 🚀 ATUALIZA O STATUS DO VÍDEO DO ATLETA (APROVADO/REPROVADO)
+  // 🚀 AUXILIAR: ENTRA COM O PLAYER DE VÍDEO INTEGRADO EM MODAL
+  void _assistirVideoInline(String url, String tituloVideo) {
+    if (url.isEmpty) return;
+    showDialog(
+      context: context,
+      builder: (context) => ModalPlayerVideo(urlVideo: url, titulo: tituloVideo),
+    );
+  }
+
+  // 🚀 ATUALIZA O STATUS DO VÍDEO DO ATLETA (APROVADO/REPROVADO) VIA RPC SEGURO
   Future<void> _moderarVideo(String inscricaoId, String novoStatus) async {
     try {
-      await supabase
-          .from('participantes_apostas')
-          .update({'status_video': novoStatus})
-          .eq('id', inscricaoId);
+      // Chamando via RPC seguro interno do Supabase
+      await supabase.rpc(
+        'moderar_pesagem', 
+        params: {
+          'inscricao_id': inscricaoId,
+          'novo_status': novoStatus,
+        },
+      );
 
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text(novoStatus == 'aprovado' ? "✅ Pesagem Homologada!" : "❌ Vídeo Reprovado."),
-          backgroundColor: novoStatus == 'aprovado' ? Colors.green : Colors.redAccent,
-        ),
-      );
-      _buscarVideosParaAnalise(); // Recarrega a lista
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(novoStatus == 'aprovado' ? "✅ Pesagem Homologada via Função!" : "❌ Vídeo Reprovado via Função."),
+            backgroundColor: novoStatus == 'aprovado' ? Colors.green : Colors.redAccent,
+          ),
+        );
+        _buscarVideosParaAnalise(resetar: true); 
+      }
     } catch (e) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text("Erro ao salvar decisão: $e"), backgroundColor: Colors.redAccent),
-      );
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text("Erro ao salvar decisão: $e"), backgroundColor: Colors.redAccent),
+        );
+      }
     }
   }
 
@@ -306,7 +367,7 @@ class _TelaAdmState extends State<TelaAdm> {
   @override
   Widget build(BuildContext context) {
     return DefaultTabController(
-      length: 3, // 🚀 MUDADO AQUI: Passou de 2 para 3 abas de gerenciamento
+      length: 3, 
       child: Scaffold(
         backgroundColor: const Color(0xFF121212),
         appBar: AppBar(
@@ -320,7 +381,7 @@ class _TelaAdmState extends State<TelaAdm> {
             tabs: [
               Tab(icon: Icon(Icons.add_box_outlined), text: "Lançar"),
               Tab(icon: Icon(Icons.settings_outlined), text: "Gerenciar"),
-              Tab(icon: Icon(Icons.rate_review_outlined), text: "Vídeos"), // 🚀 NOVA ABA
+              Tab(icon: Icon(Icons.rate_review_outlined), text: "Vídeos"), 
             ],
           ),
         ),
@@ -328,7 +389,7 @@ class _TelaAdmState extends State<TelaAdm> {
           children: [
             _buildAbaLancamento(),
             _buildAbaGerenciamento(),
-            _buildAbaModerarVideos(), // 🚀 NOVO MÉTODO INJETADO ABAIXO
+            _buildAbaModerarVideos(), 
           ],
         ),
       ),
@@ -561,24 +622,32 @@ class _TelaAdmState extends State<TelaAdm> {
     );
   }
 
-  // 🚀 NOVA SEÇÃO: CONSTRUÇÃO DA INTERFACE DE FILA DE MODERAÇÃO DE VÍDEOS
+  // 🚀 INTERFACE DA FILA DE MODERAÇÃO TOTALMENTE OTIMIZADA COM PAGINAÇÃO INFINITA
   Widget _buildAbaModerarVideos() {
     if (_carregandoVideos) {
-          return const Center(child: CircularProgressIndicator(color: Color(0xFF00E676)));
-        }
+      return const Center(child: CircularProgressIndicator(color: Color(0xFF00E676)));
+    }
 
     return RefreshIndicator(
-      onRefresh: _buscarVideosParaAnalise,
+      onRefresh: () => _buscarVideosParaAnalise(resetar: true),
       color: const Color(0xFF00E676),
       child: _videosParaAnalise.isEmpty
           ? const Center(child: Text("🎉 Tudo limpo! Nenhum vídeo pendente de análise.", style: TextStyle(color: Colors.white54)))
           : ListView.builder(
-              itemCount: _videosParaAnalise.length,
+              controller: _scrollController, // 🚀 ESCUTA A ROLAGEM AQUI
+              itemCount: _videosParaAnalise.length + (_temMaisDados ? 1 : 0),
               padding: const EdgeInsets.all(16),
               itemBuilder: (context, index) {
+                // Se atingir o final da lista carregada e houver mais dados, exibe loader no rodapé
+                if (index == _videosParaAnalise.length) {
+                  return const Padding(
+                    padding: EdgeInsets.symmetric(vertical: 16),
+                    child: Center(child: CircularProgressIndicator(color: Color(0xFF00E676))),
+                  );
+                }
+
                 final inscricao = _videosParaAnalise[index];
                 
-                // Mapeia os dados relacionais vindos do Supabase Select com as Foreign Keys
                 final usuarioNome = inscricao['usuarios']?['nome'] ?? 'Atleta Desconhecido';
                 final desafioNome = inscricao['apostas_disponiveis']?['nome'] ?? 'Desafio não identificado';
                 final codigoEscrito = inscricao['codigo_verificacao'] ?? '---';
@@ -622,7 +691,7 @@ class _TelaAdmState extends State<TelaAdm> {
                       const Text("VÍDEOS DA PESAGEM:", style: TextStyle(color: Colors.white38, fontSize: 11, fontWeight: FontWeight.bold)),
                       const SizedBox(height: 10),
                       
-                      // Links ou Botões para os vídeos
+                      // Botões Inline que chamam o Player de Vídeo Integrado
                       Row(
                         children: [
                           Expanded(
@@ -630,10 +699,8 @@ class _TelaAdmState extends State<TelaAdm> {
                               style: OutlinedButton.styleFrom(side: const BorderSide(color: Colors.white24)),
                               icon: const Icon(Icons.person_pin, color: Colors.blueAccent),
                               label: const Text("Vídeo Rosto", style: TextStyle(color: Colors.white70, fontSize: 13)),
-                              onPressed: urlRosto.isEmpty ? null : () {
-                                // Aqui você pode disparar um player ou abrir a URL no navegador
-                                ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text("Abrindo link: $urlRosto")));
-                              },
+                              // 🚀 ATUALIZADO: Abre o player diretamente dentro do app
+                              onPressed: urlRosto.isEmpty ? null : () => _assistirVideoInline(urlRosto, "Vídeo do Rosto ($usuarioNome)"),
                             ),
                           ),
                           const SizedBox(width: 10),
@@ -642,9 +709,8 @@ class _TelaAdmState extends State<TelaAdm> {
                               style: OutlinedButton.styleFrom(side: const BorderSide(color: Colors.white24)),
                               icon: const Icon(Icons.monitor_weight_outlined, color: Colors.orangeAccent),
                               label: const Text("Vídeo Peso", style: TextStyle(color: Colors.white70, fontSize: 13)),
-                              onPressed: urlPeso.isEmpty ? null : () {
-                                ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text("Abrindo link: $urlPeso")));
-                              },
+                              // 🚀 ATUALIZADO: Abre o player diretamente dentro do app
+                              onPressed: urlPeso.isEmpty ? null : () => _assistirVideoInline(urlPeso, "Vídeo do Peso ($usuarioNome)"),
                             ),
                           ),
                         ],
@@ -692,6 +758,94 @@ class _TelaAdmState extends State<TelaAdm> {
       enabledBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: const BorderSide(color: Colors.white10)),
       errorBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: const BorderSide(color: Colors.redAccent)),
       focusedErrorBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: const BorderSide(color: Colors.redAccent, width: 1.5)),
+    );
+  }
+}
+
+// ============================================================================
+// 🚀 WIDGET COMPLEMENTAR: MODAL COMPLETO COM PLAYER DE ALTA PERFORMANCE
+// ============================================================================
+class ModalPlayerVideo extends StatefulWidget {
+  final String urlVideo;
+  final String titulo;
+
+  const ModalPlayerVideo({super.key, required this.urlVideo, required this.titulo});
+
+  @override
+  State<ModalPlayerVideo> createState() => _ModalPlayerVideoState();
+}
+
+class _ModalPlayerVideoState extends State<ModalPlayerVideo> {
+  late VideoPlayerController _controller;
+  bool _inicializado = false;
+  bool _erro = false;
+
+  @override
+  void initState() {
+    super.initState();
+    _controller = VideoPlayerController.networkUrl(Uri.parse(widget.urlVideo))
+      ..initialize().then((_) {
+        setState(() {
+          _inicializado = true;
+          _controller.play();
+          _controller.setLooping(true); 
+        });
+      }).catchError((e) {
+        setState(() => _erro = true);
+        print("Erro ao carregar o vídeo no player: $e");
+      });
+  }
+
+  @override
+  void dispose() {
+    _controller.dispose(); 
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return AlertDialog(
+      backgroundColor: const Color(0xFF1A1A1A),
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+      title: Row(
+        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+        children: [
+          Expanded(child: Text(widget.titulo, style: const TextStyle(color: Colors.white, fontSize: 16, fontWeight: FontWeight.bold), overflow: TextOverflow.ellipsis)),
+          IconButton(
+            icon: const Icon(Icons.close, color: Colors.white54),
+            onPressed: () => Navigator.pop(context),
+          )
+        ],
+      ),
+      content: SizedBox(
+        width: 400, 
+        height: 400,
+        child: _erro
+            ? const Center(child: Text("❌ Erro ao reproduzir vídeo.\nVerifique se o Bucket é público.", textAlign: TextAlign.center, style: TextStyle(color: Colors.redAccent)))
+            : _inicializado
+                ? GestureDetector(
+                    onTap: () {
+                      setState(() {
+                        _controller.value.isPlaying ? _controller.pause() : _controller.play();
+                      });
+                    },
+                    child: Stack(
+                      alignment: Alignment.center,
+                      children: [
+                        AspectRatio(
+                          aspectRatio: _controller.value.aspectRatio,
+                          child: VideoPlayer(_controller),
+                        ),
+                        if (!_controller.value.isPlaying)
+                          const CircleAvatar(
+                            backgroundColor: Colors.black54,
+                            child: Icon(Icons.play_arrow, color: Colors.white, size: 30),
+                          ),
+                      ],
+                    ),
+                  )
+                : const Center(child: CircularProgressIndicator(color: Color(0xFF00E676))),
+      ),
     );
   }
 }
