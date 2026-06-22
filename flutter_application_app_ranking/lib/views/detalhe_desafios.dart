@@ -1,6 +1,9 @@
 import 'dart:math';
 import 'package:flutter/material.dart';
 import 'package:image_picker/image_picker.dart'; 
+import 'package:supabase_flutter/supabase_flutter.dart'; 
+import '../core/supabase_client.dart';               
+import 'dart:typed_data'; 
 
 // ==========================================
 // TELA 1: DETALHES COMPLETOS DO DESAFIO
@@ -217,18 +220,74 @@ class _TelaInstrucoesVideoState extends State<TelaInstrucoesVideo> {
 
     setState(() => _enviando = true);
     try {
-      await Future.delayed(const Duration(seconds: 2)); // Simulação de upload
+      print("DEBUG 1: Iniciando processo de envio...");
+      final uid = supabase.auth.currentUser?.id;
+      if (uid == null) throw "Usuário não autenticado";
+
+      final agora = DateTime.now();
+      final dataFormatada = "${agora.year}-${agora.month.toString().padLeft(2, '0')}-${agora.day.toString().padLeft(2, '0')}";
+      
+      final caminhoBase = "checagem_peso/videos/$dataFormatada";
+      final nomeVideoRosto = "$caminhoBase/${widget.inscricaoId}_rosto_${agora.millisecondsSinceEpoch}.mp4";
+      final nomeVideoPeso = "$caminhoBase/${widget.inscricaoId}_peso_${agora.millisecondsSinceEpoch}.mp4";
+
+      print("DEBUG 2: Lendo bytes dos vídeos...");
+      // Lendo os bytes convertendo explicitamente para garantir compatibilidade Web
+      final bytesRosto = Uint8List.fromList(await _videoRosto!.readAsBytes());
+      final bytesPeso = Uint8List.fromList(await _videoPeso!.readAsBytes());
+
+      print("DEBUG 3: Bytes lidos. Iniciando upload para o Storage...");
+      final bucket = supabase.storage.from('avatars');
+      
+      await bucket.uploadBinary(
+        nomeVideoRosto, 
+        bytesRosto, 
+        fileOptions: const FileOptions(contentType: 'video/mp4')
+      );
+      print("DEBUG 4: Vídeo do Rosto enviado com sucesso!");
+
+      await bucket.uploadBinary(
+        nomeVideoPeso, 
+        bytesPeso, 
+        fileOptions: const FileOptions(contentType: 'video/mp4')
+      );
+      print("DEBUG 5: Vídeo do Peso enviado com sucesso!");
+
+      // Gerando as URLs públicas
+      final urlRosto = bucket.getPublicUrl(nomeVideoRosto);
+      final urlPeso = bucket.getPublicUrl(nomeVideoPeso);
+      print("DEBUG 6: URLs obtidas -> Rosto: $urlRosto | Peso: $urlPeso");
+
+      print("DEBUG 7: Enviando comando de UPDATE para a tabela participantes_apostas (ID: ${widget.inscricaoId})...");
+      
+      // Criamos o mapa explicitamente para garantir que chaves batam com as colunas do banco
+      final dadosAtualizacao = {
+        'status_video': 'em_analise',
+        'video_rosto_url': urlRosto, 
+        'video_peso_url': urlPeso,
+        'codigo_verificacao': _palavraAleatoria,
+      };
+
+      await supabase
+          .from('participantes_apostas')
+          .update(dadosAtualizacao)
+          .eq('id', widget.inscricaoId);
+
+      print("DEBUG 8: UPDATE concluído no banco de dados com sucesso!");
 
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text("🚀 Ambos os vídeos foram enviados para a moderação!"), backgroundColor: Colors.green),
+          const SnackBar(content: Text("🚀 Vídeos enviados com sucesso para análise!"), backgroundColor: Colors.green),
         );
         Navigator.pop(context);
       }
-    } catch (e) {
+    } catch (e, stacktrace) {
+      print("❌ ERRO CAPTURADO NO FLUXO: $e");
+      print("STACKTRACE DO ERRO: $stacktrace");
+      
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text("❌ Erro no envio: $e"), backgroundColor: Colors.redAccent),
+          SnackBar(content: Text("❌ Erro no envio dos vídeos: $e"), backgroundColor: Colors.redAccent),
         );
       }
     } finally {
@@ -381,12 +440,12 @@ class _TelaInstrucoesVideoState extends State<TelaInstrucoesVideo> {
                     width: double.infinity,
                     height: 52,
                     child: ElevatedButton(
-                      onPressed: (_videoRosto != null && _videoPeso != null) ? _finalizarEnvio : null,
-                      style: ElevatedButton.styleFrom(
-                        backgroundColor: Colors.greenAccent.shade400,
-                        disabledBackgroundColor: Colors.white10,
-                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-                      ),
+                      onPressed: (_videoRosto != null && _videoPeso != null && !_enviando) ? _finalizarEnvio : null,
+                          style: ElevatedButton.styleFrom(
+                            backgroundColor: Colors.greenAccent.shade400,
+                            disabledBackgroundColor: Colors.white10,
+                            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                          ),
                       child: Text(
                         "CONCLUIR E ENVIAR GRAVAÇÕES",
                         style: TextStyle(
