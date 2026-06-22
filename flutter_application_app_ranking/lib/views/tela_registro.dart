@@ -14,12 +14,16 @@ class _TelaRegistroState extends State<TelaRegistro> {
   final _nomeController = TextEditingController();
   final _emailController = TextEditingController();
   final _telefoneController = TextEditingController();
+  
+  // 🚀 NOVO: Controlador para o CPF
+  final _cpfController = TextEditingController();
+  
   final _senhaController = TextEditingController();
   final _confirmarSenhaController = TextEditingController();
   
   bool _carregando = false;
   
-  // Novas variáveis para controlar a visibilidade das senhas
+  // Variáveis para controlar a visibilidade das senhas
   bool _senhaVisivel = false;
   bool _confirmarSenhaVisivel = false;
 
@@ -34,6 +38,8 @@ class _TelaRegistroState extends State<TelaRegistro> {
         data: {
           'display_name': _nomeController.text.trim(),
           'phone_number': _telefoneController.text.trim(),
+          // 🚀 NOVO: Salvando o CPF nos metadados do usuário no Supabase
+          'cpf': _cpfController.text.trim(),
         },
       );
       
@@ -64,6 +70,7 @@ class _TelaRegistroState extends State<TelaRegistro> {
     _nomeController.dispose();
     _emailController.dispose();
     _telefoneController.dispose();
+    _cpfController.dispose(); // 🚀 NOVO: Limpando o controlador do CPF
     _senhaController.dispose();
     _confirmarSenhaController.dispose();
     super.dispose();
@@ -114,11 +121,21 @@ class _TelaRegistroState extends State<TelaRegistro> {
                     placeholder: "(XX) XXXXX-XXXX",
                   ),
                   const SizedBox(height: 16),
+
+                  // 🚀 NOVO: Campo visual do CPF
+                  _campo(
+                    controller: _cpfController, 
+                    label: "CPF (Somente números)", 
+                    icon: Icons.badge_outlined,
+                    keyboardType: TextInputType.number,
+                    placeholder: "00000000000",
+                  ),
+                  const SizedBox(height: 16),
                   
-                  // Campo Senha com o ícone de olhar a senha
+                  // Campo Senha
                   TextFormField(
                     controller: _senhaController,
-                    obscureText: !_senhaVisivel, // Se _senhaVisivel for true, obscureText vira false
+                    obscureText: !_senhaVisivel,
                     style: const TextStyle(color: Colors.white),
                     decoration: _decoracaoDoCampo(
                       "Senha", 
@@ -139,7 +156,7 @@ class _TelaRegistroState extends State<TelaRegistro> {
                   ),
                   const SizedBox(height: 16),
 
-                  // Campo Confirmar Senha com o ícone de olhar a senha independente
+                  // Campo Confirmar Senha
                   TextFormField(
                     controller: _confirmarSenhaController,
                     obscureText: !_confirmarSenhaVisivel,
@@ -190,7 +207,7 @@ class _TelaRegistroState extends State<TelaRegistro> {
     );
   }
 
-  // Função auxiliar apenas para os campos simples (Nome, Email, Telefone)
+  // Função auxiliar apenas para os campos simples (Nome, Email, Telefone, CPF)
   Widget _campo({
     required TextEditingController controller, 
     required String label, 
@@ -207,14 +224,14 @@ class _TelaRegistroState extends State<TelaRegistro> {
     );
   }
 
-  // Centraliza o estilo visual e agora aceita o ícone de sufixo (olho) opcional
+  // Centraliza o estilo visual
   InputDecoration _decoracaoDoCampo(String label, IconData icon, {String? placeholder, Widget? sufixo}) {
     return InputDecoration(
       labelText: label,
       hintText: placeholder,
       hintStyle: const TextStyle(color: Colors.white24),
       prefixIcon: Icon(icon, color: Colors.greenAccent),
-      suffixIcon: sufixo, // O ícone do olho é injetado aqui
+      suffixIcon: sufixo, 
       labelStyle: const TextStyle(color: Colors.white70),
       filled: true, 
       fillColor: Colors.white.withValues(alpha: 0.05),

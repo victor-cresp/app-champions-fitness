@@ -4,6 +4,7 @@ import 'tela_minhas_apostas.dart';
 import 'tela_apostas_disponiveis.dart';
 import 'tela_perfil.dart';
 import 'tela_adm.dart';
+import 'tela_membro.dart';
 
 class TelaAbas extends StatefulWidget {
   const TelaAbas({super.key});
@@ -62,8 +63,8 @@ class _TelaAbasState extends State<TelaAbas> {
   List<Widget> _obterTelas() {
     final telas = [
       TelaMinhasApostas(onIrParaNovaAposta: () => _mudarAba(1)), 
-      // 🚀 ATUALIZADO: Passando o redirecionamento para a aba "Meus Desafios" (Índice 0)
       TelaApostasDisponiveis(onDesafioInscrito: () => _mudarAba(0)),                            
+      const TelaMembro(), // 🚀 INJETADO: Nova aba de assinatura na posição 2
       const TelaPerfil(),                                        
       const Center(child: Text("Tela de Configurações em Desenvolvimento", style: TextStyle(color: Colors.white70, fontSize: 16))), 
     ];
@@ -158,6 +159,12 @@ class _TelaAbasState extends State<TelaAbas> {
             icon: Icon(Icons.add_circle_outline),
             activeIcon: Icon(Icons.add_circle),
             label: 'Desafios',
+          ),
+          // 🚀 INJETADO: Item visual correspondente à TelaMembro
+          const BottomNavigationBarItem(
+            icon: Icon(Icons.star_border_outlined),
+            activeIcon: Icon(Icons.star),
+            label: 'Seja PRO',
           ),
           const BottomNavigationBarItem(
             icon: Icon(Icons.person_outline),
