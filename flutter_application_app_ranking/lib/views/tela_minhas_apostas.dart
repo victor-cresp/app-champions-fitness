@@ -62,12 +62,11 @@ class _TelaMinhasApostasState extends State<TelaMinhasApostas> {
     }
   }
 
-  // Helper para definir a cor do badge de estágio ao lado do título
   Color _obterCorEstagio(String estagio) {
     switch (estagio) {
       case 'Em Andamento': return Colors.blueAccent;
       case 'A iniciar': return Colors.greenAccent;
-      default: return Colors.white38; // Concluídos
+      default: return Colors.white38; 
     }
   }
 
@@ -131,16 +130,13 @@ class _TelaMinhasApostasState extends State<TelaMinhasApostas> {
 
     final agora = DateTime.now();
 
-    // 📁 SUBSTITUA esse bloco de filtragem específico dentro do método build da sua 'tela_minhas_apostas.dart':
     final inscricoesValidas = _minhasInscricoes.where((inscricao) {
       final desafio = inscricao['apostas_disponiveis'] ?? {};
 
-      // 🚀 TRAVA DE SEGURANÇA 1: Se o JOIN falhar ou vier vazio em ambiente de teste, força o card a aparecer!
       if (desafio.isEmpty) {
         return true; 
       }
 
-      // Se o admin deletou o desafio de forma lógica, ele some da aba do usuário
       if (desafio['is_deleted'] == true) {
         return false; 
       }
@@ -153,17 +149,15 @@ class _TelaMinhasApostasState extends State<TelaMinhasApostas> {
       final bool irregular = (statusPagamento == 'pendente' || statusVideo == 'nao_enviado' || statusVideo == 'reprovado');
       final bool prazoEncerrado = agora.isAfter(dataLimite);
 
-      // 🚀 TRAVA DE SEGURANÇA 2: Modificada para não expulsar o usuário se o desafio começou recentemente (tolerância de carência)
       if (irregular && prazoEncerrado) {
         final dataInicio = DateTime.tryParse(desafio['data_inicio'] ?? '') ?? agora;
         final diferencaDiasDoInicio = agora.difference(dataInicio).inDays;
 
-        // Se o desafio começou a menos de 5 dias atrás, NÃO esconde o card. Dá tempo do usuário pagar/mandar o vídeo!
         if (diferencaDiasDoInicio <= 5) {
           return true;
         }
 
-        return false; // Fora do prazo e da carência de 5 dias -> Some com o card
+        return false; 
       }
       return true;
     }).toList();
@@ -207,7 +201,6 @@ class _TelaMinhasApostasState extends State<TelaMinhasApostas> {
 
     return Column(
       children: [
-        // 🚀 Ajustado: Container agora sem fundo preto para assumir o background natural da tela
         Container(
           padding: const EdgeInsets.symmetric(vertical: 10),
           child: SingleChildScrollView(
@@ -219,7 +212,7 @@ class _TelaMinhasApostasState extends State<TelaMinhasApostas> {
                 const SizedBox(width: 8),
                 _buildFilterChip('Em Andamento'),
                 const SizedBox(width: 8),
-                _buildFilterChip('A iniciar'), // 🚀 Nome atualizado
+                _buildFilterChip('A iniciar'), 
                 const SizedBox(width: 8),
                 _buildFilterChip('Concluídos'),
               ],
@@ -264,12 +257,25 @@ class _TelaMinhasApostasState extends State<TelaMinhasApostas> {
                       final String estagioTemporal = obterEstagioDesafio(desafio);
                       final Color corEstagio = _obterCorEstagio(estagioTemporal);
 
+                      // 🚀 FIXED: Variável renomeada para 'jaComecou' evitando caracteres ilegais no Dart
+                      final bool irregular = (statusPagamento == 'pendente' || statusVideo == 'nao_enviado' || statusVideo == 'reprovado');
+                      final bool jaComecou = agora.isAfter(dataInicio);
+                      
+                      int? diasRestantesCarencia;
+                      if (irregular && jaComecou) {
+                        final dataLimiteCarencia = dataInicio.add(const Duration(days: 5));
+                        diasRestantesCarencia = dataLimiteCarencia.difference(agora).inDays + 1; 
+                      }
+
                       return Card(
                         color: const Color(0xFF1A1A1A),
                         margin: const EdgeInsets.symmetric(vertical: 8),
                         shape: RoundedRectangleBorder(
                           borderRadius: BorderRadius.circular(16), 
-                          side: const BorderSide(color: Colors.white10),
+                          side: BorderSide(
+                            color: diasRestantesCarencia != null ? Colors.redAccent.withValues(alpha: 0.5) : Colors.white10,
+                            width: diasRestantesCarencia != null ? 1.5 : 1,
+                          ),
                         ),
                         child: InkWell(
                           borderRadius: BorderRadius.circular(16),
@@ -289,7 +295,33 @@ class _TelaMinhasApostasState extends State<TelaMinhasApostas> {
                             child: Column(
                               crossAxisAlignment: CrossAxisAlignment.start,
                               children: [
-                                // Título + Badge de Estágio + Seta lateral
+                                if (diasRestantesCarencia != null) ...[
+                                  Container(
+                                    width: double.infinity,
+                                    margin: const EdgeInsets.only(bottom: 12),
+                                    padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                                    decoration: BoxDecoration(
+                                      color: Colors.redAccent.withValues(alpha: 0.1),
+                                      borderRadius: BorderRadius.circular(8),
+                                      border: Border.all(color: Colors.redAccent.withValues(alpha: 0.3)),
+                                    ),
+                                    child: Row(
+                                      children: [
+                                        const Icon(Icons.warning_amber_rounded, color: Colors.redAccent, size: 18),
+                                        const SizedBox(width: 8),
+                                        Expanded(
+                                          child: Text(
+                                            jaComecou && diasRestantesCarencia <= 0
+                                                ? "⚠️ ATENÇÃO: Últimas horas para regularizar sua pesagem e pagamento!"
+                                                : "⚠️ Desafio em andamento! Regularize seu envio em até $diasRestantesCarencia dias para não ser desclassificado.",
+                                            style: const TextStyle(color: Colors.redAccent, fontSize: 12, fontWeight: FontWeight.bold),
+                                          ),
+                                        ),
+                                      ],
+                                    ),
+                                  ),
+                                ],
+
                                 Row(
                                   mainAxisAlignment: MainAxisAlignment.spaceBetween,
                                   children: [
@@ -300,7 +332,6 @@ class _TelaMinhasApostasState extends State<TelaMinhasApostas> {
                                       ),
                                     ),
                                     const SizedBox(width: 8),
-                                    // 🚀 NOVO BADGE: Estágio temporal integrado no cabeçalho do card
                                     Container(
                                       padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
                                       decoration: BoxDecoration(

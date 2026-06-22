@@ -32,7 +32,7 @@ class DesafioModel {
       return EstagioDesafio.bloqueio;
     } else if (agora.isAfter(dataInicio) && agora.isBefore(dataFim)) {
       // Regra dos Atrasados (Late Joiners): Permite entrar até o 7º dia de jogo
-      final limiteAtrasados = dataInicio.add(const Duration(days: 7));
+      final limiteAtrasados = dataInicio.add(const Duration(days: 5));
       if (agora.isBefore(limiteAtrasados)) {
         return EstagioDesafio.divulgacao; // Ainda aceita inscrição, mas já está rodando
       }
