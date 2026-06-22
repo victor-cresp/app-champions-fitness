@@ -112,32 +112,28 @@ class _TelaApostasDisponiveisState extends State<TelaApostasDisponiveis> {
       }).select().single(); 
 
       if (mounted) {
-        final agora = DateTime.now();
+        // Exibe o feedback de sucesso
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text("Inscrição realizada com sucesso!"), 
+            backgroundColor: Colors.green
+          ),
+        );
         
-        if (agora.isAfter(desafio.dataInicio)) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(content: Text("Inscrição realizada! Abra os detalhes para regularizar seu pagamento e peso."), backgroundColor: Colors.orangeAccent),
-          );
-          
-          Navigator.push(
-            context,
-            MaterialPageRoute(
-              builder: (context) => TelaDetalhesDesafio(
-                inscricaoData: novaInscricao, 
-                desafioData: itemOriginal,    
-              ),
+        // 🚀 MUDANÇA AQUI: Redireciona DIRETAMENTE para a tela de detalhes do desafio recém-inscrito
+        Navigator.push(
+          context,
+          MaterialPageRoute(
+            builder: (context) => TelaDetalhesDesafio(
+              inscricaoData: novaInscricao, // Passa os dados gerados da inscrição (id, status_pagamento, etc)
+              desafioData: itemOriginal,    // Passa os dados estruturais do desafio (regras, valores, datas)
             ),
-          );
-        } else {
-          ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(content: Text("Inscrição confirmada! Redirecionando para seus desafios..."), backgroundColor: Colors.green),
-          );
-          if (widget.onDesafioInscrito != null) {
-            widget.onDesafioInscrito!();
-          }
-        }
+          ),
+        ).then((_) {
+          // Quando o usuário voltar da tela de detalhes, atualiza a lista de desafios disponíveis
+          _carregarDesafios();
+        });
       }
-      _carregarDesafios();
     } catch (e) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
