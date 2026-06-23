@@ -148,17 +148,18 @@ class _TelaAbasState extends State<TelaAbas> {
         selectedItemColor: Colors.greenAccent.shade400,
         unselectedItemColor: Colors.white38,
         showUnselectedLabels: true,
+
         type: BottomNavigationBarType.fixed, 
         items: [
           const BottomNavigationBarItem(
-            icon: Icon(Icons.style_outlined),
-            activeIcon: Icon(Icons.style),
-            label: 'Meus Desafios',
+            icon: Icon(Icons.emoji_events_outlined),
+            activeIcon: Icon(Icons.emoji_events),
+            label: 'Desafios',
           ),
           const BottomNavigationBarItem(
             icon: Icon(Icons.add_circle_outline),
             activeIcon: Icon(Icons.add_circle),
-            label: 'Desafios',
+            label: 'Abertos',
           ),
           // 🚀 INJETADO: Item visual correspondente à TelaMembro
           const BottomNavigationBarItem(

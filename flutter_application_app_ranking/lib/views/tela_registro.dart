@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart' show rootBundle;
 import 'package:supabase_flutter/supabase_flutter.dart';
 import '../core/supabase_client.dart';
 import '../core/app_theme.dart';
@@ -23,6 +24,7 @@ class _TelaRegistroState extends State<TelaRegistro> {
   final _confirmarSenhaController = TextEditingController();
   
   bool _carregando = false;
+  bool _aceitouTermos = false;
   
   // Variáveis para controlar a visibilidade das senhas
   bool _senhaVisivel = false;
@@ -30,6 +32,10 @@ class _TelaRegistroState extends State<TelaRegistro> {
 
   Future<void> _registrar() async {
     if (!_formKey.currentState!.validate()) return;
+    if (!_aceitouTermos) {
+      _mostrarMensagem("Você precisa aceitar os Termos de Uso para criar sua conta.", Colors.orangeAccent);
+      return;
+    }
     setState(() => _carregando = true);
 
     try {
@@ -64,6 +70,79 @@ class _TelaRegistroState extends State<TelaRegistro> {
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(content: Text(msg), backgroundColor: cor),
     );
+  }
+
+  Future<void> _abrirTermosDeUso() async {
+    try {
+      final termos = await rootBundle.loadString('assets/termos_de_uso.txt');
+      if (!mounted) return;
+      showDialog(
+        context: context,
+        builder: (context) => Dialog(
+          backgroundColor: const Color(0xFF1E1E1E),
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+          child: Padding(
+            padding: const EdgeInsets.all(20),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Row(
+                  children: [
+                    const Icon(Icons.description, color: Colors.greenAccent, size: 22),
+                    const SizedBox(width: 8),
+                    const Expanded(
+                      child: Text(
+                        "Termos de Uso",
+                        style: TextStyle(color: Colors.white, fontSize: 18, fontWeight: FontWeight.bold),
+                      ),
+                    ),
+                    IconButton(
+                      icon: const Icon(Icons.close, color: Colors.white54),
+                      onPressed: () => Navigator.pop(context),
+                    ),
+                  ],
+                ),
+                const Divider(color: Colors.white10),
+                Expanded(
+                  child: SingleChildScrollView(
+                    child: Text(
+                      termos,
+                      style: const TextStyle(color: Colors.white70, fontSize: 13, height: 1.5),
+                    ),
+                  ),
+                ),
+                const SizedBox(height: 16),
+                SizedBox(
+                  width: double.infinity,
+                  height: 44,
+                  child: ElevatedButton(
+                    onPressed: () {
+                      setState(() => _aceitouTermos = true);
+                      Navigator.pop(context);
+                    },
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: Colors.greenAccent.shade400,
+                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                    ),
+                    child: const Text(
+                      "ACEITAR E CONTINUAR",
+                      style: TextStyle(color: Colors.black, fontWeight: FontWeight.bold),
+                    ),
+                  ),
+                ),
+                const SizedBox(height: 8),
+                TextButton(
+                  onPressed: () => Navigator.pop(context),
+                  child: const Text("Fechar", style: TextStyle(color: Colors.white38)),
+                ),
+              ],
+            ),
+          ),
+        ),
+      );
+    } catch (e) {
+      _mostrarMensagem("Erro ao carregar Termos de Uso: $e", Colors.redAccent);
+    }
   }
 
   @override
@@ -180,8 +259,72 @@ class _TelaRegistroState extends State<TelaRegistro> {
                     },
                   ),
                   
-                  const SizedBox(height: 32),
-                  
+                  const SizedBox(height: 24),
+
+                  // Aceite dos Termos de Uso
+                  Container(
+                    padding: const EdgeInsets.all(12),
+                    decoration: BoxDecoration(
+                      color: Colors.white.withValues(alpha: 0.03),
+                      borderRadius: BorderRadius.circular(12),
+                      border: Border.all(color: Colors.white10),
+                    ),
+                    child: Row(
+                      children: [
+                        SizedBox(
+                          width: 24,
+                          height: 24,
+                          child: Checkbox(
+                            value: _aceitouTermos,
+                            onChanged: (v) => setState(() => _aceitouTermos = v ?? false),
+                            activeColor: Colors.greenAccent.shade400,
+                            checkColor: Colors.black,
+                            side: const BorderSide(color: Colors.white38),
+                          ),
+                        ),
+                        const SizedBox(width: 10),
+                        Expanded(
+                          child: GestureDetector(
+                            onTap: () => setState(() => _aceitouTermos = !_aceitouTermos),
+                            child: RichText(
+                              text: TextSpan(
+                                style: const TextStyle(color: Colors.white60, fontSize: 13, height: 1.3),
+                                children: [
+                                  const TextSpan(text: "Li e aceito os "),
+                                  TextSpan(
+                                    text: "Termos de Uso",
+                                    style: TextStyle(
+                                      color: Colors.greenAccent.shade400,
+                                      fontWeight: FontWeight.bold,
+                                      decoration: TextDecoration.underline,
+                                    ),
+                                    recognizer: null,
+                                  ),
+                                  const TextSpan(text: " e a Política de Privacidade da plataforma."),
+                                ],
+                              ),
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                  const SizedBox(height: 20),
+
+                  // Botão de ver Termos de Uso
+                  Align(
+                    alignment: Alignment.centerRight,
+                    child: TextButton.icon(
+                      onPressed: _abrirTermosDeUso,
+                      icon: Icon(Icons.description_outlined, size: 16, color: Colors.greenAccent.shade400),
+                      label: Text(
+                        "Ler Termos de Uso",
+                        style: TextStyle(color: Colors.greenAccent.shade400, fontSize: 12),
+                      ),
+                    ),
+                  ),
+                  const SizedBox(height: 8),
+
                   SizedBox(
                     width: double.infinity, height: 54,
                     child: ElevatedButton(

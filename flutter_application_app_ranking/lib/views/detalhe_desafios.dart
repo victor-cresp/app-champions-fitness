@@ -480,10 +480,9 @@ class _TelaInstrucoesVideoState extends State<TelaInstrucoesVideo> {
   }
 
   String _gerarPalavraAleatoria() {
-    const palavras = ['CHAMP', 'FORCA', 'BALANCA', 'FOCO', 'TREINO', 'FITNESS', 'PUMP'];
+    const chars = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
     final random = Random();
-    final numero = random.nextInt(900) + 100; 
-    return "${palavras[random.nextInt(palavras.length)]}$numero";
+    return List.generate(6, (_) => chars[random.nextInt(chars.length)]).join();
   }
 
   Future<void> _capturarVideoAoVivo(int tipoVideo, Duration limiteTempo) async {

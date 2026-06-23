@@ -1,0 +1,37 @@
+TERMOS DE USO E POLÍTICA DE PRIVACIDADE – Circuito Fitness
+Última atualização: 23/06/2026
+
+Bem-vindo ao Circuito Fitness! Ao se cadastrar e utilizar nossa plataforma, você concorda integralmente com estes Termos de Uso e Política de Privacidade. Se você não concordar com qualquer termo aqui disposto, não deverá utilizar o aplicativo.
+
+1. NATUREZA DA PLATAFORMA (NÃO É JOGO DE AZAR)
+1.1. O Circuito Fitness é uma plataforma tecnológica de incentivo fitness e bem-estar, cujo objetivo é motivar os usuários a atingirem metas de saúde por meio de desafios de performance pessoal.
+1.2. Declaração de Habilidade: Os desafios propostos na plataforma dependem exclusivamente da habilidade, esforço físico e disciplina do Usuário. O resultado dos desafios não depende, sob nenhuma circunstância, de sorte, azar, aleatoriedade ou fatores externos independentes da vontade do Usuário. Portanto, esta plataforma não configura site de apostas, loteria ou jogo de azar, nos termos da legislação brasileira vigente.
+
+2. O FUNCIONAMENTO DOS DESAFIOS E DESTINAÇÃO DOS VALORES
+2.1. Para participar de um desafio coletivo, o Usuário deverá aderir ao grupo correspondente e realizar o aporte de um valor fixo estipulado previamente na plataforma, denominado Aporte de Performance.
+2.2. Taxa de Administração da Plataforma: Do montante total arrecadado com os aportes de todos os participantes daquele respectivo desafio, o Circuito Fitness reterá o percentual fixo de 3% (três por cento) a título de taxa de administração, manutenção da plataforma física/digital e cobertura de taxas do gateway de pagamento.
+2.3. Cenário A – Cumprimento Integral por Todos os Participantes: Caso todos os usuários inscritos no respectivo desafio cumpram integralmente as metas e tenham seus vídeos validados, o valor do Aporte de Performance será devolvido integralmente a cada um dos participantes (100% de reembolso do valor aportado por cada indivíduo).
+2.4. Cenário B – Cumprimento Parcial (Rateio por Performance): Caso apenas uma parte dos participantes cumpra a meta, o montante total do desafio (já deduzida a taxa de 3% da plataforma) será dividido e repassado proporcionalmente apenas entre os Usuários que obtiveram êxito e tiveram sua validação aprovada. Os usuários que descumprirem a meta perdem o direito ao reembolso ou a qualquer valor.
+2.5. O Usuário declara estar ciente de que o valor a receber no Cenário B é variável, dependendo exclusivamente do número total de participantes desclassificados no mesmo desafio, configurando um bônus por eficiência e disciplina no cumprimento do contrato.
+
+3. PROTOCOLO DE VALIDAÇÃO INICIAL E REQUISITOS DOS VÍDEOS
+3.1. Para confirmar sua participação definitiva no desafio e habilitar o seu Aporte de Performance, o Usuário deverá, obrigatoriamente, enviar 2 (dois) vídeos de validação através do aplicativo dentro do prazo estipulado de inscrição.
+3.2. Especificações Técnicas dos Vídeos:
+• Vídeo 1 (Validação de Identidade e Data): Deve ter duração máxima de 3 (três) segundos, mostrando claramente o rosto do Usuário de forma nítida ao lado de um papel físico contendo a Palavra Aleatória do Dia escrita à mão ou impressa de forma legível.
+• Vídeo 2 (Validação de Peso/Parâmetro): Deve ter duração máxima de 5 (cinco) segundos, iniciando com a filmagem da mão do Usuário segurando o mesmo papel com a Palavra Aleatória do Dia e, em seguida, focando na numeração do peso corporal na balança (ou peso do equipamento, conforme o desafio).
+3.3. Condição de Legitimidade: Ambos os vídeos não podem conter cortes, edições, emendas, filtros ou manipulações digitais. A plataforma do Circuito Fitness se reserva o direito de rejeitar os vídeos em caso de ilegibilidade, suspeita de fraude, uso de inteligência artificial (deepfake) ou uso de mídias gravadas previamente.
+3.4. Prazo de Envio e Devolução por Ausência: Os dois vídeos de validação devem ser enviados estritamente antes do encerramento do prazo de inscrição do desafio.
+• Caso o Usuário realize o pagamento da inscrição, mas não envie os vídeos dentro do prazo estipulado, ele será automaticamente desclassificado antes do início do desafio e o valor do seu aporte será devolvido/estornado integralmente.
+
+4. PRIVACIDADE E PROTEÇÃO DE DADOS (LGPD) – DADOS SENSÍVEIS
+4.1. Consentimento Biométrico: Ao enviar o vídeo contendo seu rosto e voz para validação, o Usuário fornece seu consentimento expresso e inequívoco (nos termos do Art. 5º, II e Art. 11 da LGPD - Lei nº 13.709/18) para que a plataforma colete, armazene e processe sua imagem facial e de voz, que são considerados dados pessoais sensíveis, com a finalidade exclusiva de auditoria e prevenção à fraude no desafio.
+4.2. Segurança: Os vídeos são armazenados em servidores criptografados e seguros.
+4.3. Política de Descarte: Com o objetivo de minimizar o armazenamento de dados sensíveis, a plataforma se compromete a deletar permanentemente o vídeo do usuário em até 15 (quinze) dias corridos após o encerramento e liquidação do desafio correspondente, não mantendo cópias em seus servidores após esse período, exceto se necessário para cumprimento de obrigação legal.
+
+5. ARQUITETURA FINANCEIRA E PAGAMENTOS
+5.1. Todas as transações financeiras (depósitos e estornos) são processadas por meio de uma instituição de pagamento parceira terceirizada (Gateway de Pagamento).
+5.2. O Usuário declara estar ciente de que os valores depositados ficam retidos em uma conta de custódia (escrow) até a finalização do desafio e auditoria dos vídeos, não gerando qualquer tipo de juro ou rendimento financeiro ao Usuário.
+
+6. DISPOSIÇÕES GERAIS E FORO
+6.1. A plataforma não se responsabiliza por lesões físicas, problemas de saúde ou acidentes decorrentes da prática das atividades físicas dos desafios. O Usuário declara estar em plenas condições de saúde e apto a praticar exercícios.
+6.2. Fica eleito o Foro da Comarca de Rio de Janeiro - RJ para dirimir quaisquer dúvidas ou litígios decorrentes destes termos.

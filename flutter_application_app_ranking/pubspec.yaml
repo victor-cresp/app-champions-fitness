@@ -30,6 +30,7 @@ flutter:
   assets:
     - assets/logo.png
     - assets/fundo_pedra.png
+    - assets/termos_de_uso.txt
     - .env
 
 flutter_launcher_icons:
