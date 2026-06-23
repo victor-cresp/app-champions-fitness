@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
-import '../../core/supabase_client.dart';
-import '../../services/ranking_service.dart';
+import '../core/supabase_client.dart';
+import '../services/ranking_service.dart';
 
 class TelaPrincipal extends StatefulWidget {
   const TelaPrincipal({super.key});

@@ -2,6 +2,7 @@ import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:image_picker/image_picker.dart';
 import '../core/supabase_client.dart';
+import '../core/app_theme.dart';
 
 class TelaPerfil extends StatefulWidget {
   const TelaPerfil({super.key});
@@ -212,19 +213,10 @@ class _TelaPerfilState extends State<TelaPerfil> {
   }
 
   InputDecoration _inputDecoration(String label, IconData iconData) {
-    return InputDecoration(
-      labelText: label,
-      
-      // 🛠️ ALTERADO AQUI: Mudamos de 'prefixIcon' para 'icon'. 
-      // Isso joga o ícone para fora da caixa e o força a se alinhar perfeitamente ao topo na Web!
-      icon: Icon(iconData, color: Colors.greenAccent),
-      
-      labelStyle: const TextStyle(color: Colors.white70),
-      filled: true,
-      fillColor: Colors.white.withValues(alpha: 0.05),
-      contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 16),
-      border: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: BorderSide.none),
-      focusedBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: const BorderSide(color: Colors.greenAccent)),
-    );
+    return buildInputDecoration(label: label, icon: iconData)
+      .copyWith(
+        icon: Icon(iconData, color: AppColors.primary),
+        fillColor: Colors.white.withValues(alpha: 0.05),
+      );
   }
 }

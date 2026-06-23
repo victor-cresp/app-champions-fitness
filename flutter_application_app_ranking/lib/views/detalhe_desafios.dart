@@ -1,11 +1,13 @@
 import 'dart:math';
-import 'dart:convert'; 
+import 'dart:convert';
+import 'dart:typed_data';
 import 'package:flutter/material.dart';
-import 'package:flutter/services.dart'; 
-import 'package:image_picker/image_picker.dart'; 
-import 'package:supabase_flutter/supabase_flutter.dart'; 
-import '../core/supabase_client.dart';               
-import 'dart:typed_data'; 
+import 'package:flutter/services.dart';
+import 'package:image_picker/image_picker.dart';
+import 'package:supabase_flutter/supabase_flutter.dart';
+import '../core/supabase_client.dart';
+import '../core/app_theme.dart';
+import '../core/date_utils.dart';
 
 class TelaDetalhesDesafio extends StatefulWidget {
   final Map<String, dynamic> inscricaoData;
@@ -309,15 +311,11 @@ class _TelaDetalhesDesafioState extends State<TelaDetalhesDesafio> {
   }
 
   InputDecoration _buildInputModalDecoration(String label, IconData icon) {
-    return InputDecoration(
-      labelText: label,
-      labelStyle: const TextStyle(color: Colors.white54, fontSize: 13),
-      prefixIcon: Icon(icon, color: Colors.greenAccent, size: 18),
-      filled: true,
+    return buildInputDecoration(label: label, icon: icon).copyWith(
       fillColor: Colors.white.withValues(alpha: 0.03),
       contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 12),
       border: OutlineInputBorder(borderRadius: BorderRadius.circular(8), borderSide: BorderSide.none),
-      focusedBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(8), borderSide: const BorderSide(color: Colors.greenAccent)),
+      focusedBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(8), borderSide: const BorderSide(color: AppColors.primary)),
     );
   }
 
@@ -329,8 +327,8 @@ class _TelaDetalhesDesafioState extends State<TelaDetalhesDesafio> {
     
     final dataInicio = DateTime.tryParse(widget.desafioData['data_inicio'] ?? '') ?? DateTime.now();
     final dataFim = DateTime.tryParse(widget.desafioData['data_fim'] ?? '') ?? DateTime.now();
-    final String inicioFormatado = "${dataInicio.day.toString().padLeft(2, '0')}/${dataInicio.month.toString().padLeft(2, '0')}/${dataInicio.year}";
-    final String fimFormatado = "${dataFim.day.toString().padLeft(2, '0')}/${dataFim.month.toString().padLeft(2, '0')}/${dataFim.year}";
+    final String inicioFormatado = dataInicio.formatted;
+    final String fimFormatado = dataFim.formatted;
 
     final String statusPagamento = widget.inscricaoData['status_pagamento'] ?? 'pendente';
     final String statusVideo = widget.inscricaoData['status_video'] ?? 'nao_enviado';

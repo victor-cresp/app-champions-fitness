@@ -1,48 +1,8 @@
 import 'package:flutter/material.dart';
 import '../core/supabase_client.dart';
+import '../core/date_utils.dart';
+import '../models/desafio_status.dart';
 import 'detalhe_desafios.dart';
-
-enum EstagioDesafio { divulgacao, bloqueio, jogo, finalizado }
-
-class DesafioModel {
-  final String id;
-  final String title;
-  final DateTime dataLimiteInscricao;
-  final DateTime dataInicio;
-  final DateTime dataFim;
-  final double valorEntrada;
-  final int totalParticipantes;
-
-  DesafioModel({
-    required this.id,
-    required this.title,
-    required this.dataLimiteInscricao,
-    required this.dataInicio,
-    required this.dataFim,
-    required this.valorEntrada,
-    required this.totalParticipantes,
-  });
-
-  double get poteTotal => totalParticipantes * valorEntrada;
-
-  EstagioDesafio get estagio {
-    final agora = DateTime.now();
-    
-    if (agora.isBefore(dataLimiteInscricao)) {
-      return EstagioDesafio.divulgacao;
-    } else if (agora.isAfter(dataLimiteInscricao) && agora.isBefore(dataInicio)) {
-      return EstagioDesafio.bloqueio;
-    } else if (agora.isAfter(dataInicio) && agora.isBefore(dataFim)) {
-      final limiteAtrasados = dataInicio.add(const Duration(days: 5));
-      if (agora.isBefore(limiteAtrasados)) {
-        return EstagioDesafio.divulgacao; 
-      }
-      return EstagioDesafio.jogo;
-    } else {
-      return EstagioDesafio.finalizado;
-    }
-  }
-}
 
 class TelaApostasDisponiveis extends StatefulWidget {
   final VoidCallback? onDesafioInscrito;
@@ -207,7 +167,7 @@ class _TelaApostasDisponiveisState extends State<TelaApostasDisponiveis> {
     bool botaoAtivo = true;
     Widget infoExtra;
 
-    final String dataFormatada = "${desafio.dataLimiteInscricao.day.toString().padLeft(2, '0')}/${desafio.dataLimiteInscricao.month.toString().padLeft(2, '0')}";
+    final String dataFormatada = desafio.dataLimiteInscricao.shortFormatted;
 
     int diasDeJogo = 0;
     if (agora.isAfter(desafio.dataInicio)) {

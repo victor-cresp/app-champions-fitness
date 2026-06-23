@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
-import 'package:video_player/video_player.dart'; // 🚀 REQUISITO PARA O PLAYER INTEGRADO
+import 'package:video_player/video_player.dart';
 import '../core/supabase_client.dart';
+import '../core/app_theme.dart';
+import '../core/date_utils.dart';
 
 class TelaAdm extends StatefulWidget {
   const TelaAdm({super.key});
@@ -237,7 +239,7 @@ class _TelaAdmState extends State<TelaAdm> {
 
     if (escolhida != null) {
       setState(() {
-        String dataFormatada = "${escolhida.day.toString().padLeft(2, '0')}/${escolhida.month.toString().padLeft(2, '0')}/${escolhida.year}";
+        String dataFormatada = escolhida.formatted;
         
         if (tipoData == 1) {
           _dataInicioSelecionada = escolhida;
@@ -594,7 +596,7 @@ class _TelaAdmState extends State<TelaAdm> {
                       final String nome = item['nome'] ?? 'Sem nome';
                       final double valor = double.tryParse(item['valor_entrada']?.toString() ?? '') ?? 0.0;
                       final dtInicio = DateTime.tryParse(item['data_inicio'] ?? '') ?? DateTime.now();
-                      final String inicioFormatado = "${dtInicio.day.toString().padLeft(2, '0')}/${dtInicio.month.toString().padLeft(2, '0')}/${dtInicio.year}";
+                      final String inicioFormatado = dtInicio.formatted;
 
                       return Card(
                         color: const Color(0xFF1A1A1A),
@@ -748,17 +750,7 @@ class _TelaAdmState extends State<TelaAdm> {
   }
 
   InputDecoration _buildInputDecoration(String label, IconData icon) {
-    return InputDecoration(
-      labelText: label,
-      labelStyle: const TextStyle(color: Colors.white54),
-      prefixIcon: Icon(icon, color: const Color(0xFF00E676)),
-      filled: true,
-      fillColor: const Color(0xFF1E1E1E),
-      focusedBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: const BorderSide(color: Color(0xFF00E676), width: 1.5)),
-      enabledBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: const BorderSide(color: Colors.white10)),
-      errorBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: const BorderSide(color: Colors.redAccent)),
-      focusedErrorBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: const BorderSide(color: Colors.redAccent, width: 1.5)),
-    );
+    return buildInputDecoration(label: label, icon: icon);
   }
 }
 

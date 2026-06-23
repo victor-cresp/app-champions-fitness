@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import '../core/supabase_client.dart';
+import '../core/date_utils.dart';
 import 'detalhe_desafios.dart'; 
 
 class TelaMinhasApostas extends StatefulWidget {
@@ -245,7 +246,7 @@ class _TelaMinhasApostasState extends State<TelaMinhasApostas> {
                       final dataFim = DateTime.tryParse(desafio['data_fim'] ?? '') ?? agora;
                       
                       final duracaoDias = dataFim.difference(dataInicio).inDays;
-                      final String limiteFormatado = "${dataLimite.day.toString().padLeft(2, '0')}/${dataLimite.month.toString().padLeft(2, '0')}";
+                      final String limiteFormatado = dataLimite.shortFormatted;
 
                       final String statusPagamento = inscricao['status_pagamento'] ?? 'pendente';
                       final String statusVideo = inscricao['status_video'] ?? 'nao_enviado';

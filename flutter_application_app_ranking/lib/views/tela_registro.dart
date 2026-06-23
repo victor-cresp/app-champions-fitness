@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import '../core/supabase_client.dart';
+import '../core/app_theme.dart';
 
 class TelaRegistro extends StatefulWidget {
   const TelaRegistro({super.key});
@@ -226,17 +227,7 @@ class _TelaRegistroState extends State<TelaRegistro> {
 
   // Centraliza o estilo visual
   InputDecoration _decoracaoDoCampo(String label, IconData icon, {String? placeholder, Widget? sufixo}) {
-    return InputDecoration(
-      labelText: label,
-      hintText: placeholder,
-      hintStyle: const TextStyle(color: Colors.white24),
-      prefixIcon: Icon(icon, color: Colors.greenAccent),
-      suffixIcon: sufixo, 
-      labelStyle: const TextStyle(color: Colors.white70),
-      filled: true, 
-      fillColor: Colors.white.withValues(alpha: 0.05),
-      border: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: BorderSide.none),
-      focusedBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: const BorderSide(color: Colors.greenAccent)),
-    );
+    return buildInputDecoration(label: label, icon: icon, hintText: placeholder, suffixIcon: sufixo)
+      .copyWith(fillColor: Colors.white.withValues(alpha: 0.05));
   }
 }

@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:supabase_flutter/supabase_flutter.dart';
 import '../core/supabase_client.dart';
+import '../core/app_theme.dart';
 import 'tela_registro.dart';
 
 class TelaLogin extends StatefulWidget {
@@ -182,15 +183,8 @@ class _TelaLoginState extends State<TelaLogin> {
   }
 
   InputDecoration _inputDecoration(String label, IconData icon) {
-    return InputDecoration(
-      labelText: label,
-      prefixIcon: Icon(icon, color: Colors.greenAccent),
-      labelStyle: const TextStyle(color: Colors.white70),
-      filled: true,
-      fillColor: Colors.white.withValues(alpha: 0.05),
-      border: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: BorderSide.none),
-      focusedBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: const BorderSide(color: Colors.greenAccent, width: 1.5)),
-    );
+    return buildInputDecoration(label: label, icon: icon)
+      .copyWith(fillColor: Colors.white.withValues(alpha: 0.05));
   }
 
   Widget _botaoGoogle() {

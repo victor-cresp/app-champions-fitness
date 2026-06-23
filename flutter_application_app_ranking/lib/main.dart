@@ -4,8 +4,8 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:flutter_dotenv/flutter_dotenv.dart';
 import 'views/tela_abas.dart';
 import 'core/supabase_client.dart';
+import 'core/app_theme.dart';
 import 'views/tela_login.dart';
-import 'views/tela_principal.dart';
 
 void main() async {
   // 1. Garante que os bindings do Flutter estão prontos
@@ -86,10 +86,7 @@ class _ChampionsAppState extends State<ChampionsApp> {
   Widget build(BuildContext context) {
     return MaterialApp(
       debugShowCheckedModeBanner: false,
-      theme: ThemeData.dark().copyWith(
-        scaffoldBackgroundColor: const Color(0xFF121212),
-        primaryColor: Colors.greenAccent,
-      ),
+      theme: darkTheme,
       // Se estiver verificando o status, mostra um loading, se logado vai para a TelaAbas, senão TelaLogin
       home: _verificandoStatus
           ? const Scaffold(body: Center(child: CircularProgressIndicator(color: Colors.greenAccent)))
