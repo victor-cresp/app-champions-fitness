@@ -29,9 +29,15 @@ class _TelaApostasDisponiveisState extends State<TelaApostasDisponiveis> {
     setState(() => _carregando = true);
 
     final uid = supabase.auth.currentUser?.id;
+    final agora = DateTime.now().toIso8601String();
 
     try {
-      final dados = await supabase.from('v_apostas_com_participantes').select('*');
+      // Filtra apenas desafios que ainda aceitam inscrição (data_limite_inscricao >= agora)
+      final dados = await supabase
+          .from('v_apostas_com_participantes')
+          .select('*')
+          .gte('data_limite_inscricao', agora)
+          .order('data_limite_inscricao', ascending: true);
 
       if (uid != null) {
         final inscricoes = await supabase

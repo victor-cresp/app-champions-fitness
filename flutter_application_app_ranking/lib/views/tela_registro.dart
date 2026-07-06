@@ -16,52 +16,109 @@ class _TelaRegistroState extends State<TelaRegistro> {
   final _nomeController = TextEditingController();
   final _emailController = TextEditingController();
   final _telefoneController = TextEditingController();
-  
-  // 🚀 NOVO: Controlador para o CPF
   final _cpfController = TextEditingController();
-  
   final _senhaController = TextEditingController();
   final _confirmarSenhaController = TextEditingController();
-  
+
   bool _carregando = false;
   bool _aceitouTermos = false;
-  
-  // Variáveis para controlar a visibilidade das senhas
+
   bool _senhaVisivel = false;
   bool _confirmarSenhaVisivel = false;
 
-  Future<void> _registrar() async {
-    if (!_formKey.currentState!.validate()) return;
-    if (!_aceitouTermos) {
-      _mostrarMensagem("Você precisa aceitar os Termos de Uso para criar sua conta.", Colors.orangeAccent);
+  // Erros específicos de cada campo (validação assíncrona)
+  String? _emailErro;
+  String? _cpfErro;
+
+Future<void> _registrar() async {
+  if (!_formKey.currentState!.validate()) return;
+  if (!_aceitouTermos) {
+    _mostrarMensagem("Você precisa aceitar os Termos de Uso para criar sua conta.", Colors.orangeAccent);
+    return;
+  }
+  if (_senhaController.text != _confirmarSenhaController.text) {
+    _mostrarMensagem("As senhas devem ser idênticas", Colors.redAccent);
+    setState(() => _carregando = false);
+    return;
+  }
+  setState(() => _carregando = true);
+
+  try {
+    // 1) Verifica se já existe CPF cadastrado na tabela usuarios
+    final cpfLimpo = _cpfController.text.trim().replaceAll(RegExp(r'\D'), '');
+    final cpfExistente = await supabase
+        .from('usuarios')
+        .select('id')
+        .eq('cpf', cpfLimpo)
+        .maybeSingle();
+
+    if (cpfExistente != null) {
+      setState(() {
+        _cpfErro = "Este CPF já está cadastrado em nossa plataforma.";
+        _carregando = false;
+      });
       return;
     }
-    setState(() => _carregando = true);
 
-    try {
-      await supabase.auth.signUp(
-        email: _emailController.text.trim(),
-        password: _senhaController.text.trim(),
-        data: {
-          'display_name': _nomeController.text.trim(),
-          'phone_number': _telefoneController.text.trim(),
-          // 🚀 NOVO: Salvando o CPF nos metadados do usuário no Supabase
-          'cpf': _cpfController.text.trim(),
-        },
+    // 2) Verifica se já existe email cadastrado na tabela usuarios
+    final emailLimpo = _emailController.text.trim().toLowerCase();
+    final emailExistente = await supabase
+        .from('usuarios')
+        .select('id')
+        .eq('email', emailLimpo)
+        .maybeSingle();
+
+    if (emailExistente != null) {
+      setState(() {
+        _emailErro = "Este e-mail já está cadastrado em nossa plataforma.";
+        _carregando = false;
+      });
+      return;
+    }
+
+    // 3) Cria o usuário no Supabase Auth (Com as chaves corrigidas para a Trigger ler)
+    await supabase.auth.signUp(
+      email: emailLimpo,
+      password: _senhaController.text.trim(),
+      data: {
+        'nome': _nomeController.text.trim(),       // Ajustado igual à tabela
+        'telefone': _telefoneController.text.trim(),   // Ajustado igual à tabela
+        'cpf': cpfLimpo,
+      },
+    );
+
+    // O PASSO 4 FOI REMOVIDO DAQUI PORQUE A TRIGGER DO BANCO JÁ FAZ ISSO AUTOMATICAMENTE
+
+    if (mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text("Conta criada com sucesso!"), backgroundColor: Colors.green),
       );
-      
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text("Conta criada com sucesso!"), backgroundColor: Colors.green),
-        );
-        Navigator.pop(context);
-      }
+      Navigator.pop(context);
+    }
     } on AuthException catch (e) {
-      _mostrarMensagem(e.message, Colors.redAccent);
-    } catch (e) {
-      _mostrarMensagem("Erro inesperado: $e", Colors.redAccent);
-    } finally {
-      if (mounted) setState(() => _carregando = false);
+      setState(() => _carregando = false);
+      debugPrint("❌ ERRO ORIGINAL DO SUPABASE: ${e.message}");
+
+      if (e.message.toLowerCase().contains('already exists') ||
+          e.message.toLowerCase().contains('already registered') ||
+          e.message.toLowerCase().contains('user already')) {
+        setState(() {
+          _emailErro = "Este e-mail já está cadastrado em nossa plataforma.";
+        });
+      } else if (e.message.toLowerCase().contains('database error') ||
+             e.message.toLowerCase().contains('saving new user')) {
+      _mostrarMensagem(
+        "Erro ao criar conta. ${e.message}. Verifique as colunas do banco ou execute o script de correção.",
+        Colors.orangeAccent,
+        );
+      } else {
+        _mostrarMensagem(e.message, Colors.redAccent);
+      }
+      } catch (e) {
+      setState(() => _carregando = false);
+      if (mounted) {
+        _mostrarMensagem("Erro inesperado: $e", Colors.redAccent);
+      }
     }
   }
 
@@ -150,7 +207,7 @@ class _TelaRegistroState extends State<TelaRegistro> {
     _nomeController.dispose();
     _emailController.dispose();
     _telefoneController.dispose();
-    _cpfController.dispose(); // 🚀 NOVO: Limpando o controlador do CPF
+    _cpfController.dispose();
     _senhaController.dispose();
     _confirmarSenhaController.dispose();
     super.dispose();
@@ -181,48 +238,67 @@ class _TelaRegistroState extends State<TelaRegistro> {
                   const SizedBox(height: 8),
                   const Text("Comece sua jornada no Champions App", style: TextStyle(color: Colors.white70)),
                   const SizedBox(height: 40),
-                  
+
                   _campo(controller: _nomeController, label: "Nome Completo", icon: Icons.person_outline),
                   const SizedBox(height: 16),
 
-                  _campo(
-                    controller: _emailController, 
-                    label: "E-mail", 
-                    icon: Icons.email_outlined,
+                  // Campo E-mail com validação de duplicidade
+                  TextFormField(
+                    controller: _emailController,
                     keyboardType: TextInputType.emailAddress,
+                    style: const TextStyle(color: Colors.white),
+                    decoration: _decoracaoDoCampo("E-mail", Icons.email_outlined),
+                    onChanged: (_) {
+                      if (_emailErro != null) setState(() => _emailErro = null);
+                    },
+                    validator: (v) {
+                      if (v == null || v.isEmpty) return "Campo obrigatório";
+                      if (!v.contains('@') || !v.contains('.')) return "Informe um e-mail válido";
+                      if (_emailErro != null) return _emailErro;
+                      return null;
+                    },
                   ),
                   const SizedBox(height: 16),
 
                   _campo(
-                    controller: _telefoneController, 
-                    label: "Telefone / Celular", 
+                    controller: _telefoneController,
+                    label: "Telefone / Celular",
                     icon: Icons.phone_outlined,
                     keyboardType: TextInputType.phone,
                     placeholder: "(XX) XXXXX-XXXX",
                   ),
                   const SizedBox(height: 16),
 
-                  // 🚀 NOVO: Campo visual do CPF
-                  _campo(
-                    controller: _cpfController, 
-                    label: "CPF (Somente números)", 
-                    icon: Icons.badge_outlined,
+                  // Campo CPF com validação de duplicidade
+                  TextFormField(
+                    controller: _cpfController,
                     keyboardType: TextInputType.number,
-                    placeholder: "00000000000",
+                    style: const TextStyle(color: Colors.white),
+                    decoration: _decoracaoDoCampo("CPF (Somente números)", Icons.badge_outlined, placeholder: "00000000000"),
+                    onChanged: (_) {
+                      if (_cpfErro != null) setState(() => _cpfErro = null);
+                    },
+                    validator: (v) {
+                      if (v == null || v.isEmpty) return "Campo obrigatório";
+                      final digitos = v.replaceAll(RegExp(r'\D'), '');
+                      if (digitos.length != 11) return "CPF deve ter 11 dígitos";
+                      if (_cpfErro != null) return _cpfErro;
+                      return null;
+                    },
                   ),
                   const SizedBox(height: 16),
-                  
+
                   // Campo Senha
                   TextFormField(
                     controller: _senhaController,
                     obscureText: !_senhaVisivel,
                     style: const TextStyle(color: Colors.white),
                     decoration: _decoracaoDoCampo(
-                      "Senha", 
+                      "Senha",
                       Icons.lock_outline,
                       sufixo: IconButton(
                         icon: Icon(
-                          _senhaVisivel ? Icons.visibility : Icons.visibility_off, 
+                          _senhaVisivel ? Icons.visibility : Icons.visibility_off,
                           color: Colors.grey,
                         ),
                         onPressed: () => setState(() => _senhaVisivel = !_senhaVisivel),
@@ -242,11 +318,11 @@ class _TelaRegistroState extends State<TelaRegistro> {
                     obscureText: !_confirmarSenhaVisivel,
                     style: const TextStyle(color: Colors.white),
                     decoration: _decoracaoDoCampo(
-                      "Confirmar Senha", 
+                      "Confirmar Senha",
                       Icons.lock_clock_outlined,
                       sufixo: IconButton(
                         icon: Icon(
-                          _confirmarSenhaVisivel ? Icons.visibility : Icons.visibility_off, 
+                          _confirmarSenhaVisivel ? Icons.visibility : Icons.visibility_off,
                           color: Colors.grey,
                         ),
                         onPressed: () => setState(() => _confirmarSenhaVisivel = !_confirmarSenhaVisivel),
@@ -254,11 +330,11 @@ class _TelaRegistroState extends State<TelaRegistro> {
                     ),
                     validator: (v) {
                       if (v == null || v.isEmpty) return "Campo obrigatório";
-                      if (v != _senhaController.text) return "As senhas não são iguais";
+                      if (v != _senhaController.text) return "As senhas devem ser idênticas";
                       return null;
                     },
                   ),
-                  
+
                   const SizedBox(height: 24),
 
                   // Aceite dos Termos de Uso
@@ -333,12 +409,12 @@ class _TelaRegistroState extends State<TelaRegistro> {
                         backgroundColor: Colors.greenAccent.shade400,
                         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
                       ),
-                      child: _carregando 
+                      child: _carregando
                         ? const SizedBox(
                             width: 24,
                             height: 24,
                             child: CircularProgressIndicator(color: Colors.black, strokeWidth: 2),
-                          ) 
+                          )
                         : const Text("CRIAR CONTA", style: TextStyle(color: Colors.black, fontWeight: FontWeight.bold)),
                     ),
                   ),
@@ -351,11 +427,11 @@ class _TelaRegistroState extends State<TelaRegistro> {
     );
   }
 
-  // Função auxiliar apenas para os campos simples (Nome, Email, Telefone, CPF)
+  // Função auxiliar apenas para os campos simples (Nome, Telefone)
   Widget _campo({
-    required TextEditingController controller, 
-    required String label, 
-    required IconData icon, 
+    required TextEditingController controller,
+    required String label,
+    required IconData icon,
     TextInputType keyboardType = TextInputType.text,
     String? placeholder,
   }) {

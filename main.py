@@ -1,24 +1,32 @@
 import math
+import os
+from dotenv import load_dotenv
 from fastapi import FastAPI, HTTPException, status
-from fastapi.middleware.cors import CORSMiddleware  # <-- 1. ADICIONE ESSA LINHA
+from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
 from supabase import create_client, Client
+
+# Carrega variáveis de ambiente do arquivo .env
+load_dotenv()
 
 app = FastAPI()
 
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],  # Diz ao navegador: "Pode aceitar requisições vindas do Edge/Flutter"
+    allow_origins=["*"],
     allow_credentials=True,
-    allow_methods=["*"],  # Libera GET, POST, etc.
+    allow_methods=["*"],
     allow_headers=["*"],
 )
 
 # =====================================================================
-# CONFIGURAÇÃO DO BANCO DE DADOS (Substitua com as suas chaves reais!)
+# CONFIGURAÇÃO DO BANCO DE DADOS (Variáveis de Ambiente)
 # =====================================================================
-SUPABASE_URL = "https://sixinlpheadgnxguutvr.supabase.co"
-SUPABASE_KEY = "sb_publishable_7XYEQNIfSXrbfh8CH1BVkA_jxOYzGGo"
+SUPABASE_URL = os.getenv("SUPABASE_URL", "")
+SUPABASE_KEY = os.getenv("SUPABASE_KEY", "")
+
+if not SUPABASE_URL or not SUPABASE_KEY:
+    raise RuntimeError("As variáveis SUPABASE_URL e SUPABASE_KEY devem ser definidas no .env")
 
 # Inicializa o cliente do Supabase
 supabase: Client = create_client(SUPABASE_URL, SUPABASE_KEY)

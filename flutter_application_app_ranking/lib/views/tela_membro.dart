@@ -2,6 +2,7 @@ import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import '../core/supabase_client.dart';
+import '../asaas_service.dart';
 
 class TelaMembro extends StatefulWidget {
   const TelaMembro({super.key});
@@ -54,43 +55,48 @@ class _TelaMembroState extends State<TelaMembro> {
     setState(() => _processandoAssinatura = true);
     try {
       final userDb = await supabase.from('usuarios').select('nome, cpf').eq('id', uid).single();
+      final String cpfCliente = userDb['cpf'] ?? '';
 
-      final payload = {
-        'usuarioId': uid,
-        'nomeCliente': userDb['nome'],
-        'cpfCnpjCliente': userDb['cpf'],
-        'formaPagamento': _metodoSelecionado == 'PIX' ? 'PIX' : 'CREDIT_CARD',
-      };
+      final emailUsuario = supabase.auth.currentUser?.email ?? '';
 
-      if (_metodoSelecionado == 'CARD') {
-        payload['cartao'] = {
-          'holderName': _nomeCard.text.trim(),
-          'number': _numCard.text.trim(),
-          'expiryMonth': _mesCard.text.trim(),
-          'expiryYear': _anoCard.text.trim(),
-          'ccv': _cvvCard.text.trim()
-        };
-      }
+      if (_metodoSelecionado == 'PIX') {
+        final resultado = await AsaasService.criarAssinaturaProPix(
+          usuarioId: uid,
+          nomeCliente: userDb['nome'] ?? '',
+          emailCliente: emailUsuario,
+          cpfCnpjCliente: cpfCliente,
+        );
 
-      final response = await supabase.functions.invoke('processar-assinatura', body: payload);
-      final resData = response.data as Map<String, dynamic>;
-
-      if (response.status == 200 && resData['success'] == true) {
-        if (_metodoSelecionado == 'PIX') {
-          setState(() {
-            _pixCode = resData['pixCopiaECola'];
-            _qrCodeBase64 = resData['pixQrCodeBase64'];
-            _processandoAssinatura = false;
-          });
-        } else {
-          setState(() {
-            _isMembro = true;
-            _processandoAssinatura = false;
-          });
-          _alerta("PRO Ativado!", "Você agora é um Atleta PRO oficial.", Colors.green);
-        }
+        setState(() {
+          _pixCode = resultado['pixCopiaECola'];
+          _qrCodeBase64 = resultado['pixQrCodeBase64'];
+          _processandoAssinatura = false;
+        });
       } else {
-        throw resData['error'] ?? 'Erro no gateway.';
+        // Cartão de crédito
+        if (_nomeCard.text.isEmpty || _numCard.text.isEmpty || _mesCard.text.isEmpty || _anoCard.text.isEmpty || _cvvCard.text.isEmpty) {
+          throw "Por favor, preencha todos os campos do cartão.";
+        }
+
+        final resultado = await AsaasService.criarAssinaturaProCartao(
+          usuarioId: uid,
+          nomeCliente: userDb['nome'] ?? '',
+          emailCliente: emailUsuario,
+          cpfCnpjCliente: cpfCliente,
+          dadosCartao: {
+            'holderName': _nomeCard.text.trim(),
+            'number': _numCard.text.trim(),
+            'expiryMonth': _mesCard.text.trim(),
+            'expiryYear': _anoCard.text.trim(),
+            'ccv': _cvvCard.text.trim(),
+          },
+        );
+
+        setState(() {
+          _isMembro = true;
+          _processandoAssinatura = false;
+        });
+        _alerta("PRO Ativado!", "Você agora é um Atleta PRO oficial.", Colors.green);
       }
     } catch (e) {
       setState(() => _processandoAssinatura = false);
@@ -99,7 +105,30 @@ class _TelaMembroState extends State<TelaMembro> {
   }
 
   void _alerta(String t, String m, Color c) {
-    ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text("$t: $m"), backgroundColor: c));
+    if (c == Colors.redAccent) {
+      if (!mounted) return;
+      showDialog(
+        context: context,
+        builder: (ctx) => AlertDialog(
+          backgroundColor: const Color(0xFF1A1A1A),
+          title: Text(t, style: const TextStyle(color: Colors.redAccent, fontWeight: FontWeight.bold)),
+          content: SingleChildScrollView(
+            child: SelectableText(
+              m,
+              style: const TextStyle(color: Colors.white70, fontSize: 13),
+            ),
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(ctx),
+              child: const Text("FECHAR", style: TextStyle(color: Colors.white54)),
+            ),
+          ],
+        ),
+      );
+    } else {
+      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text("$t: $m"), backgroundColor: c));
+    }
   }
 
   @override
@@ -122,7 +151,6 @@ class _TelaMembroState extends State<TelaMembro> {
           const SizedBox(height: 60),
           const Icon(Icons.verified, size: 90, color: Colors.greenAccent),
           const SizedBox(height: 24),
-          // 🚀 CORRIGIDO: Alterado de FontWeight.black para FontWeight.w900
           const Text("VOCÊ É ATLETA PRO ⚡", style: TextStyle(color: Colors.white, fontSize: 24, fontWeight: FontWeight.w900)),
           const SizedBox(height: 12),
           const Text("Sua assinatura está ativa. Suas inscrições em todos os desafios do aplicativo estão liberadas!", textAlign: TextAlign.center, style: TextStyle(color: Colors.white60, fontSize: 14)),
@@ -215,24 +243,26 @@ class _TelaMembroState extends State<TelaMembro> {
       children: [
         _input(_nomeCard, "Nome no Cartão", Icons.person),
         const SizedBox(height: 12),
-        _input(_numCard, "Número do Cartão", Icons.credit_card),
+        _input(_numCard, "Número do Cartão", Icons.credit_card, tecladoNumerico: true),
         const SizedBox(height: 12),
         Row(
           children: [
-            Expanded(child: _input(_mesCard, "Mês (MM)", Icons.calendar_today)),
+            Expanded(child: _input(_mesCard, "Mês (MM)", Icons.calendar_today, tecladoNumerico: true)),
             const SizedBox(width: 8),
-            Expanded(child: _input(_anoCard, "Ano (AAAA)", Icons.calendar_today)),
+            Expanded(child: _input(_anoCard, "Ano (AAAA)", Icons.calendar_today, tecladoNumerico: true)),
             const SizedBox(width: 8),
-            Expanded(child: _input(_cvvCard, "CVV", Icons.lock)),
+            Expanded(child: _input(_cvvCard, "CVV", Icons.lock, tecladoNumerico: true)),
           ],
         )
       ],
     );
   }
 
-  Widget _input(TextEditingController c, String l, IconData i) {
+  Widget _input(TextEditingController c, String l, IconData i, {bool tecladoNumerico = false}) {
     return TextFormField(
-      controller: c, style: const TextStyle(color: Colors.white),
+      controller: c, 
+      style: const TextStyle(color: Colors.white),
+      keyboardType: tecladoNumerico ? TextInputType.number : TextInputType.text,
       decoration: InputDecoration(
         labelText: l, prefixIcon: Icon(i, color: Colors.greenAccent, size: 18),
         filled: true, fillColor: Colors.white10, border: OutlineInputBorder(borderRadius: BorderRadius.circular(8), borderSide: BorderSide.none),

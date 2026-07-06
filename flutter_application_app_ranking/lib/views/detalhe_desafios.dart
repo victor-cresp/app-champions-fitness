@@ -8,6 +8,7 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 import '../core/supabase_client.dart';
 import '../core/app_theme.dart';
 import '../core/date_utils.dart';
+import '../asaas_service.dart';
 
 class TelaDetalhesDesafio extends StatefulWidget {
   final Map<String, dynamic> inscricaoData;
@@ -69,53 +70,75 @@ class _TelaDetalhesDesafioState extends State<TelaDetalhesDesafio> {
       final double valorDoDesafio = double.tryParse(widget.desafioData['valor_entrada']?.toString() ?? '') ?? 0.0;
       final String nomeDoDesafio = widget.desafioData['nome'] ?? 'Desafio';
 
-      final Map<String, dynamic> bodyPayload = {
-        'usuarioId': usuarioAtual.id,
-        'nomeCliente': nomeDoBanco,
-        'cpfCnpjCliente': cpfDoBanco,
-        'formaPagamento': formaPagamento,
-        'valorDesafio': valorDoDesafio, 
-        'nomeDesafio': nomeDoDesafio,   
-      };
+      final emailUsuario = usuarioAtual.email ?? '';
 
-      if (formaPagamento == 'CREDIT_CARD' && dadosCartao != null) {
-        bodyPayload['cartao'] = dadosCartao;
-      }
+      if (formaPagamento == 'PIX') {
+        final resultado = await AsaasService.criarPagamentoPix(
+          usuarioId: usuarioAtual.id,
+          nomeCliente: nomeDoBanco,
+          emailCliente: emailUsuario,
+          cpfCnpjCliente: cpfDoBanco,
+          valorDesafio: valorDoDesafio,
+          nomeDesafio: nomeDoDesafio,
+          desafioId: widget.desafioData['id'].toString(),
+        );
 
-      final response = await supabase.functions.invoke(
-        'criar-link-assinatura', 
-        body: bodyPayload,
-      );
-
-      if (response.status == 200 && response.data != null) {
-        final mapaDados = response.data as Map<String, dynamic>;
-        
-        if (mapaDados['success'] == true) {
-          if (formaPagamento == 'PIX') {
-            setModalState(() {
-              _processandoPagamento = false;
-              dadosCartao?['pixCopiaECola'] = mapaDados['pixCopiaECola'];
-              dadosCartao?['pixQrCodeBase64'] = mapaDados['pixQrCodeBase64'];
-            });
-          } else {
-            Navigator.pop(context);
-            _mostrarSnack("✅ Inscrição confirmada com sucesso via Cartão!", Colors.green);
-          }
-        } else {
-          throw mapaDados['error'] ?? 'Erro no processamento do Asaas.';
-        }
+        setModalState(() {
+          _processandoPagamento = false;
+          dadosCartao?['pixCopiaECola'] = resultado['pixCopiaECola'];
+          dadosCartao?['invoiceUrl'] = resultado['invoiceUrl'];
+        });
       } else {
-        throw 'Falha ao conectar com o servidor de pagamentos.';
+        if (dadosCartao == null) {
+          throw "Dados do cartão não informados.";
+        }
+
+        final resultado = await AsaasService.criarPagamentoCartao(
+          usuarioId: usuarioAtual.id,
+          nomeCliente: nomeDoBanco,
+          emailCliente: emailUsuario,
+          cpfCnpjCliente: cpfDoBanco,
+          valorDesafio: valorDoDesafio,
+          nomeDesafio: nomeDoDesafio,
+          desafioId: widget.desafioData['id'].toString(),
+          dadosCartao: dadosCartao,
+        );
+
+        Navigator.pop(context);
+        _mostrarSnack("✅ Inscrição confirmada com sucesso via Cartão!", Colors.green);
       }
     } catch (e) {
       setModalState(() => _processandoPagamento = false);
-      _mostrarSnack("❌ Erro: $e", Colors.redAccent);
+      _mostrarDialogErro("Erro no Pagamento", e.toString());
     }
   }
 
   void _mostrarSnack(String msg, Color col) {
     if (!mounted) return;
     ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(msg), backgroundColor: col));
+  }
+
+  void _mostrarDialogErro(String titulo, String mensagem) {
+    if (!mounted) return;
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        backgroundColor: const Color(0xFF1A1A1A),
+        title: Text(titulo, style: const TextStyle(color: Colors.redAccent, fontWeight: FontWeight.bold)),
+        content: SingleChildScrollView(
+          child: SelectableText(
+            mensagem,
+            style: const TextStyle(color: Colors.white70, fontSize: 13),
+          ),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: const Text("FECHAR", style: TextStyle(color: Colors.white54)),
+          ),
+        ],
+      ),
+    );
   }
 
   void _abrirModalPagamento() {
