@@ -81,11 +81,13 @@ class _TelaDetalhesDesafioState extends State<TelaDetalhesDesafio> {
           valorDesafio: valorDoDesafio,
           nomeDesafio: nomeDoDesafio,
           desafioId: widget.desafioData['id'].toString(),
+          inscricaoId: widget.inscricaoData['id'].toString(), // 🔥 ENVIANDO O ID DA INSCRIÇÃO CORRETO
         );
 
         setModalState(() {
           _processandoPagamento = false;
           dadosCartao?['pixCopiaECola'] = resultado['pixCopiaECola'];
+          dadosCartao?['pixQrCodeBase64'] = resultado['pixQrCodeBase64']; // 🔥 SALVANDO A IMAGEM EM BASE64
           dadosCartao?['invoiceUrl'] = resultado['invoiceUrl'];
         });
       } else {
@@ -101,6 +103,7 @@ class _TelaDetalhesDesafioState extends State<TelaDetalhesDesafio> {
           valorDesafio: valorDoDesafio,
           nomeDesafio: nomeDoDesafio,
           desafioId: widget.desafioData['id'].toString(),
+          inscricaoId: widget.inscricaoData['id'].toString(), // 🔥 ENVIANDO O ID DA INSCRIÇÃO CORRETO
           dadosCartao: dadosCartao,
         );
 

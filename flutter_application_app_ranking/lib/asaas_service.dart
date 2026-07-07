@@ -13,6 +13,7 @@ class AsaasService {
     required double valorDesafio,
     required String nomeDesafio,
     required String desafioId,
+    required String inscricaoId,
   }) async {
     final response = await supabase.functions.invoke(
       'asaas-pagamento-desafio',
@@ -25,6 +26,7 @@ class AsaasService {
         'valorDesafio': valorDesafio,
         'nomeDesafio': nomeDesafio,
         'desafioId': desafioId,
+        'inscricaoId': inscricaoId,
       },
     );
 
@@ -48,6 +50,7 @@ class AsaasService {
     required double valorDesafio,
     required String nomeDesafio,
     required String desafioId,
+    required String inscricaoId,
     required Map<String, dynamic> dadosCartao,
     int parcelas = 1,
   }) async {
@@ -62,6 +65,7 @@ class AsaasService {
         'valorDesafio': valorDesafio,
         'nomeDesafio': nomeDesafio,
         'desafioId': desafioId,
+        'inscricaoId': inscricaoId,
         'cartao': dadosCartao,
         'parcelas': parcelas,
       },
