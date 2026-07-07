@@ -26,6 +26,8 @@ class TelaDetalhesDesafio extends StatefulWidget {
 
 class _TelaDetalhesDesafioState extends State<TelaDetalhesDesafio> {
   bool _processandoPagamento = false;
+  RealtimeChannel? _inscricaoSubscription; 
+  late String _statusPagamentoAtual;       
 
   final _nomeCartaoController = TextEditingController();
   final _numeroCartaoController = TextEditingController();
@@ -34,13 +36,58 @@ class _TelaDetalhesDesafioState extends State<TelaDetalhesDesafio> {
   final _cvvCartaoController = TextEditingController();
 
   @override
+  void initState() {
+    super.initState();
+    _statusPagamentoAtual = widget.inscricaoData['status_pagamento'] ?? 'pendente';
+    _escutarMudancasPagamento(); 
+  }
+
+  @override
   void dispose() {
+    // 🔥 CORREÇÃO: Removendo o canal de forma correta sem usar o .name
+    if (_inscricaoSubscription != null) {
+      supabase.removeChannel(_inscricaoSubscription!);
+    }
     _nomeCartaoController.dispose();
     _numeroCartaoController.dispose();
     _mesCartaoController.dispose();
     _anoCartaoController.dispose();
     _cvvCartaoController.dispose();
     super.dispose();
+  }
+
+  void _escutarMudancasPagamento() {
+    final inscricaoId = widget.inscricaoData['id']?.toString();
+    if (inscricaoId == null || inscricaoId.isEmpty) return;
+
+    _inscricaoSubscription = supabase
+        .channel('public:participantes_apostas:id=eq.$inscricaoId')
+        .onPostgresChanges(
+          event: PostgresChangeEvent.update,
+          schema: 'public',
+          table: 'participantes_apostas',
+          filter: PostgresChangeFilter(
+            type: PostgresChangeFilterType.eq,
+            column: 'id',
+            value: inscricaoId,
+          ),
+          callback: (payload) {
+            final novoStatus = payload.newRecord['status_pagamento']?.toString() ?? 'pendente';
+            
+            if (novoStatus == 'pago') {
+              if (mounted) {
+                if (Navigator.canPop(context)) {
+                  Navigator.pop(context); 
+                }
+                setState(() {
+                  _statusPagamentoAtual = 'pago';
+                });
+                _mostrarSnack("🎉 Pagamento do Desafio confirmado com sucesso!", Colors.green);
+              }
+            }
+          },
+        )
+        .subscribe();
   }
 
   Future<void> _processarPagamentoTransparente({
@@ -81,13 +128,13 @@ class _TelaDetalhesDesafioState extends State<TelaDetalhesDesafio> {
           valorDesafio: valorDoDesafio,
           nomeDesafio: nomeDoDesafio,
           desafioId: widget.desafioData['id'].toString(),
-          inscricaoId: widget.inscricaoData['id'].toString(), // 🔥 ENVIANDO O ID DA INSCRIÇÃO CORRETO
+          inscricaoId: widget.inscricaoData['id'].toString(),
         );
 
         setModalState(() {
           _processandoPagamento = false;
           dadosCartao?['pixCopiaECola'] = resultado['pixCopiaECola'];
-          dadosCartao?['pixQrCodeBase64'] = resultado['pixQrCodeBase64']; // 🔥 SALVANDO A IMAGEM EM BASE64
+          dadosCartao?['pixQrCodeBase64'] = resultado['pixQrCodeBase64']; 
           dadosCartao?['invoiceUrl'] = resultado['invoiceUrl'];
         });
       } else {
@@ -95,7 +142,7 @@ class _TelaDetalhesDesafioState extends State<TelaDetalhesDesafio> {
           throw "Dados do cartão não informados.";
         }
 
-        final resultado = await AsaasService.criarPagamentoCartao(
+        await AsaasService.criarPagamentoCartao(
           usuarioId: usuarioAtual.id,
           nomeCliente: nomeDoBanco,
           emailCliente: emailUsuario,
@@ -103,12 +150,17 @@ class _TelaDetalhesDesafioState extends State<TelaDetalhesDesafio> {
           valorDesafio: valorDoDesafio,
           nomeDesafio: nomeDoDesafio,
           desafioId: widget.desafioData['id'].toString(),
-          inscricaoId: widget.inscricaoData['id'].toString(), // 🔥 ENVIANDO O ID DA INSCRIÇÃO CORRETO
+          inscricaoId: widget.inscricaoData['id'].toString(),
           dadosCartao: dadosCartao,
         );
 
-        Navigator.pop(context);
-        _mostrarSnack("✅ Inscrição confirmada com sucesso via Cartão!", Colors.green);
+        // 🔥 CORREÇÃO: Protegendo o Navigator assíncrono com 'if (mounted)' antes de fechar a tela
+        if (mounted) {
+          if (Navigator.canPop(context)) {
+            Navigator.pop(context);
+          }
+          _mostrarSnack("✅ Inscrição confirmada com sucesso via Cartão!", Colors.green);
+        }
       }
     } catch (e) {
       setModalState(() => _processandoPagamento = false);
@@ -332,7 +384,9 @@ class _TelaDetalhesDesafioState extends State<TelaDetalhesDesafio> {
         );
       },
     ).then((_) {
-      setState(() => _processandoPagamento = false);
+      if (mounted) {
+        setState(() => _processandoPagamento = false);
+      }
     });
   }
 
@@ -356,7 +410,7 @@ class _TelaDetalhesDesafioState extends State<TelaDetalhesDesafio> {
     final String inicioFormatado = dataInicio.formatted;
     final String fimFormatado = dataFim.formatted;
 
-    final String statusPagamento = widget.inscricaoData['status_pagamento'] ?? 'pendente';
+    final String statusPagamento = _statusPagamentoAtual; 
     final String statusVideo = widget.inscricaoData['status_video'] ?? 'nao_enviado';
 
     return Scaffold(
@@ -482,6 +536,7 @@ class _TelaDetalhesDesafioState extends State<TelaDetalhesDesafio> {
   }
 }
 
+// 🔥 RESTAURADA COM SUCESSO ABAIXO: A classe que havia sumido!
 class TelaInstrucoesVideo extends StatefulWidget {
   final String inscricaoId;
 

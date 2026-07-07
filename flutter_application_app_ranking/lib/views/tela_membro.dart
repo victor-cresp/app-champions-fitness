@@ -1,6 +1,7 @@
 import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:supabase_flutter/supabase_flutter.dart'; // 🔥 Importado para usar o RealtimeChannel
 import '../core/supabase_client.dart';
 import '../asaas_service.dart';
 
@@ -15,6 +16,7 @@ class _TelaMembroState extends State<TelaMembro> {
   bool _carregandoStatus = true;
   bool _isMembro = false;
   bool _processandoAssinatura = false;
+  RealtimeChannel? _usuarioSubscription; // 🔥 Canal Realtime da assinatura
 
   String _metodoSelecionado = 'PIX';
   String? _pixCode;
@@ -30,6 +32,54 @@ class _TelaMembroState extends State<TelaMembro> {
   void initState() {
     super.initState();
     _checarStatusMembro();
+    _escutarStatusMembroRealtime(); // 🔥 Inicia a escuta em tempo real do plano
+  }
+
+  @override
+  void dispose() {
+    // 🔥 Correção: Remove o canal diretamente usando a instância dele
+    if (_usuarioSubscription != null) {
+      supabase.removeChannel(_usuarioSubscription!);
+    }
+    _nomeCard.dispose();
+    _numCard.dispose();
+    _mesCard.dispose();
+    _anoCard.dispose();
+    _cvvCard.dispose();
+    super.dispose();
+  }
+
+  void _escutarStatusMembroRealtime() {
+    final uid = supabase.auth.currentUser?.id;
+    if (uid == null) return;
+
+    _usuarioSubscription = supabase
+        .channel('public:usuarios:id=eq.$uid')
+        .onPostgresChanges(
+          event: PostgresChangeEvent.update,
+          schema: 'public',
+          table: 'usuarios',
+          filter: PostgresChangeFilter(
+            type: PostgresChangeFilterType.eq,
+            column: 'id',
+            value: uid,
+          ),
+          callback: (payload) {
+            final virouMembro = payload.newRecord['is_membro'] == true;
+            
+            if (virouMembro) {
+              if (mounted) {
+                setState(() {
+                  _isMembro = true;
+                  _pixCode = null;
+                  _qrCodeBase64 = null;
+                });
+                _alerta("PRO Ativado! ⚡", "Parabéns! Seu acesso Atleta PRO está ativo em tempo real.", Colors.green);
+              }
+            }
+          },
+        )
+        .subscribe();
   }
 
   Future<void> _checarStatusMembro() async {
@@ -73,12 +123,11 @@ class _TelaMembroState extends State<TelaMembro> {
           _processandoAssinatura = false;
         });
       } else {
-        // Cartão de crédito
         if (_nomeCard.text.isEmpty || _numCard.text.isEmpty || _mesCard.text.isEmpty || _anoCard.text.isEmpty || _cvvCard.text.isEmpty) {
           throw "Por favor, preencha todos os campos do cartão.";
         }
 
-        final resultado = await AsaasService.criarAssinaturaProCartao(
+        await AsaasService.criarAssinaturaProCartao(
           usuarioId: uid,
           nomeCliente: userDb['nome'] ?? '',
           emailCliente: emailUsuario,
@@ -92,11 +141,10 @@ class _TelaMembroState extends State<TelaMembro> {
           },
         );
 
+        // A confirmação visual do cartão pode ser imediata ou cair na escuta do Webhook reativo
         setState(() {
-          _isMembro = true;
           _processandoAssinatura = false;
         });
-        _alerta("PRO Ativado!", "Você agora é um Atleta PRO oficial.", Colors.green);
       }
     } catch (e) {
       setState(() => _processandoAssinatura = false);
@@ -127,7 +175,7 @@ class _TelaMembroState extends State<TelaMembro> {
         ),
       );
     } else {
-      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text("$t: $m"), backgroundColor: c));
+      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text("$t: m"), backgroundColor: c));
     }
   }
 

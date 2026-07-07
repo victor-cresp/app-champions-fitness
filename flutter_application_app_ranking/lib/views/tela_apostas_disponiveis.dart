@@ -15,6 +15,7 @@ class TelaApostasDisponiveis extends StatefulWidget {
 
 class _TelaApostasDisponiveisState extends State<TelaApostasDisponiveis> {
   List<dynamic> _listaDeDesafios = [];
+  List<dynamic> _minhasPendencias = [];
   bool _carregando = true;
   final List<String> _desafiosInscritosIds = []; 
 
@@ -40,14 +41,26 @@ class _TelaApostasDisponiveisState extends State<TelaApostasDisponiveis> {
           .order('data_limite_inscricao', ascending: true);
 
       if (uid != null) {
+        // Busca inscrições do usuário para saber em quais ele já está
         final inscricoes = await supabase
             .from('participantes_apostas')
-            .select('aposta_id')
+            .select('aposta_id, status_pagamento, status_video, apostas_disponiveis(*)')
             .eq('usuario_id', uid);
         
         _desafiosInscritosIds.clear();
+        _minhasPendencias.clear();
+
         for (var inscricao in inscricoes) {
           _desafiosInscritosIds.add(inscricao['aposta_id'].toString());
+          
+          // Verifica se é uma pendência (pagamento pendente OU vídeo não aprovado)
+          final String statusPagamento = inscricao['status_pagamento'] ?? 'pendente';
+          final String statusVideo = inscricao['status_video'] ?? 'nao_enviado';
+          final bool isPendente = (statusPagamento == 'pendente' || statusVideo == 'nao_enviado' || statusVideo == 'reprovado');
+          
+          if (isPendente) {
+            _minhasPendencias.add(inscricao);
+          }
         }
       }
 
@@ -86,17 +99,16 @@ class _TelaApostasDisponiveisState extends State<TelaApostasDisponiveis> {
           ),
         );
         
-        // 🚀 MUDANÇA AQUI: Redireciona DIRETAMENTE para a tela de detalhes do desafio recém-inscrito
+        // Redireciona DIRETAMENTE para a tela de detalhes do desafio recém-inscrito
         Navigator.push(
           context,
           MaterialPageRoute(
             builder: (context) => TelaDetalhesDesafio(
-              inscricaoData: novaInscricao, // Passa os dados gerados da inscrição (id, status_pagamento, etc)
-              desafioData: itemOriginal,    // Passa os dados estruturais do desafio (regras, valores, datas)
+              inscricaoData: novaInscricao,
+              desafioData: itemOriginal,
             ),
           ),
         ).then((_) {
-          // Quando o usuário voltar da tela de detalhes, atualiza a lista de desafios disponíveis
           _carregarDesafios();
         });
       }
@@ -121,13 +133,106 @@ class _TelaApostasDisponiveisState extends State<TelaApostasDisponiveis> {
     );
   }
 
+  Widget _buildPendenciaCard(Map<String, dynamic> inscricao) {
+    final desafio = inscricao['apostas_disponiveis'] ?? {};
+    final String titulo = desafio['nome'] ?? 'Desafio sem nome';
+    final String statusPagamento = inscricao['status_pagamento'] ?? 'pendente';
+    final String statusVideo = inscricao['status_video'] ?? 'nao_enviado';
+
+    // Determina qual badge de pendência mostrar
+    String textoPendencia;
+    Color corPendencia;
+    IconData iconePendencia;
+
+    if (statusPagamento == 'pendente' && (statusVideo == 'nao_enviado' || statusVideo == 'reprovado')) {
+      textoPendencia = "Pagamento e Vídeo Pendentes";
+      corPendencia = Colors.redAccent;
+      iconePendencia = Icons.warning_amber_rounded;
+    } else if (statusPagamento == 'pendente') {
+      textoPendencia = "Pagamento Pendente";
+      corPendencia = Colors.orangeAccent;
+      iconePendencia = Icons.payment_outlined;
+    } else if (statusVideo == 'nao_enviado') {
+      textoPendencia = "Vídeo de Pesagem não Enviado";
+      corPendencia = Colors.redAccent;
+      iconePendencia = Icons.videocam_off_outlined;
+    } else if (statusVideo == 'reprovado') {
+      textoPendencia = "Vídeo Reprovado - Reenvie";
+      corPendencia = Colors.redAccent;
+      iconePendencia = Icons.error_outline;
+    } else {
+      textoPendencia = "Pendente";
+      corPendencia = Colors.orangeAccent;
+      iconePendencia = Icons.hourglass_empty;
+    }
+
+    return Card(
+      color: const Color(0xFF1A1A1A),
+      margin: const EdgeInsets.symmetric(vertical: 6),
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(14),
+        side: BorderSide(color: corPendencia.withValues(alpha: 0.4), width: 1.5),
+      ),
+      child: InkWell(
+        borderRadius: BorderRadius.circular(14),
+        onTap: () {
+          Navigator.push(
+            context,
+            MaterialPageRoute(
+              builder: (context) => TelaDetalhesDesafio(
+                inscricaoData: inscricao,
+                desafioData: desafio,
+              ),
+            ),
+          );
+        },
+        child: Padding(
+          padding: const EdgeInsets.all(14.0),
+          child: Row(
+            children: [
+              Container(
+                padding: const EdgeInsets.all(8),
+                decoration: BoxDecoration(
+                  color: corPendencia.withValues(alpha: 0.15),
+                  borderRadius: BorderRadius.circular(10),
+                ),
+                child: Icon(iconePendencia, color: corPendencia, size: 24),
+              ),
+              const SizedBox(width: 14),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      titulo,
+                      style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 15),
+                    ),
+                    const SizedBox(height: 4),
+                    Text(
+                      textoPendencia,
+                      style: TextStyle(color: corPendencia, fontSize: 12, fontWeight: FontWeight.w600),
+                    ),
+                  ],
+                ),
+              ),
+              const Icon(Icons.arrow_forward_ios, color: Colors.white38, size: 14),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     if (_carregando) {
       return const Center(child: CircularProgressIndicator(color: Colors.greenAccent));
     }
 
-    if (_listaDeDesafios.isEmpty) {
+    final bool temPendencias = _minhasPendencias.isNotEmpty;
+    final bool temDesafiosDisponiveis = _listaDeDesafios.isNotEmpty;
+
+    if (!temPendencias && !temDesafiosDisponiveis) {
       return const Center(
         child: Text(
           "Nenhum desafio disponível no momento.",
@@ -139,26 +244,73 @@ class _TelaApostasDisponiveisState extends State<TelaApostasDisponiveis> {
     return RefreshIndicator(
       onRefresh: _carregarDesafios,
       color: Colors.greenAccent,
-      child: ListView.builder(
-        itemCount: _listaDeDesafios.length,
+      child: ListView(
         padding: const EdgeInsets.all(16),
-        itemBuilder: (context, index) {
-          final item = _listaDeDesafios[index];
-          final String desafioId = item['id']?.toString() ?? '';
-          final bool jaParticipa = _desafiosInscritosIds.contains(desafioId);
+        children: [
+          // Seção de Pendências (fixa no topo)
+          if (temPendencias) ...[
+            Container(
+              padding: const EdgeInsets.only(bottom: 8),
+              child: Row(
+                children: [
+                  const Icon(Icons.warning_amber_rounded, color: Colors.orangeAccent, size: 18),
+                  const SizedBox(width: 8),
+                  const Text(
+                    "MINHAS PENDÊNCIAS",
+                    style: TextStyle(
+                      color: Colors.orangeAccent,
+                      fontSize: 13,
+                      fontWeight: FontWeight.bold,
+                      letterSpacing: 1,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            ..._minhasPendencias.map((inscricao) => _buildPendenciaCard(inscricao)),
+            const SizedBox(height: 16),
+            const Divider(color: Colors.white10),
+            const SizedBox(height: 8),
+          ],
 
-          final desafio = DesafioModel(
-            id: desafioId,
-            title: item['nome'] ?? 'Sem nome',
-            dataLimiteInscricao: DateTime.tryParse(item['data_limite_inscricao'] ?? '') ?? DateTime.now().add(const Duration(days: 2)),
-            dataInicio: DateTime.tryParse(item['data_inicio'] ?? '') ?? DateTime.now().add(const Duration(days: 3)),
-            dataFim: DateTime.tryParse(item['data_fim'] ?? '') ?? DateTime.now().add(const Duration(days: 30)),
-            valorEntrada: double.tryParse(item['valor_entrada']?.toString() ?? '') ?? 25.00,
-            totalParticipantes: int.tryParse(item['total_participantes']?.toString() ?? '') ?? 0,
-          );
+          // Título da seção de desafios disponíveis
+          if (temDesafiosDisponiveis) ...[
+            Container(
+              padding: const EdgeInsets.only(bottom: 8),
+              child: Row(
+                children: [
+                  const Icon(Icons.add_circle_outline, color: Colors.greenAccent, size: 18),
+                  const SizedBox(width: 8),
+                  const Text(
+                    "DESAFIOS ABERTOS",
+                    style: TextStyle(
+                      color: Colors.greenAccent,
+                      fontSize: 13,
+                      fontWeight: FontWeight.bold,
+                      letterSpacing: 1,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            ..._listaDeDesafios.map((item) {
+              final String desafioId = item['id']?.toString() ?? '';
+              final bool jaParticipa = _desafiosInscritosIds.contains(desafioId);
 
-          return _cardDesafioReal(desafio, jaParticipa, item);
-        },
+              final desafio = DesafioModel(
+                id: desafioId,
+                title: item['nome'] ?? 'Sem nome',
+                dataLimiteInscricao: DateTime.tryParse(item['data_limite_inscricao'] ?? '') ?? DateTime.now().add(const Duration(days: 2)),
+                dataInicio: DateTime.tryParse(item['data_inicio'] ?? '') ?? DateTime.now().add(const Duration(days: 3)),
+                dataFim: DateTime.tryParse(item['data_fim'] ?? '') ?? DateTime.now().add(const Duration(days: 30)),
+                valorEntrada: double.tryParse(item['valor_entrada']?.toString() ?? '') ?? 25.00,
+                totalParticipantes: int.tryParse(item['total_participantes']?.toString() ?? '') ?? 0,
+              );
+
+              return _cardDesafioReal(desafio, jaParticipa, item);
+            }),
+          ],
+        ],
       ),
     );
   }
@@ -317,7 +469,6 @@ class _TelaApostasDisponiveisState extends State<TelaApostasDisponiveis> {
               child: ElevatedButton(
                 onPressed: botaoAtivo ? () {
                   if (estagio == EstagioDesafio.divulgacao) {
-                    // 🚀 CORRIGIDO: Agora usa o 'itemOriginal' mapeado no parâmetro do card
                     _inscreverNoDesafio(desafio, itemOriginal);
                   } else if (estagio == EstagioDesafio.bloqueio) {
                     _irParaTelaPesagem(desafio.id);

@@ -31,10 +31,13 @@ class _TelaMinhasApostasState extends State<TelaMinhasApostas> {
     setState(() => _carregando = true);
 
     try {
+      // Busca apenas inscrições com pagamento confirmado E vídeo aprovado
       final dadosInscricoes = await supabase
           .from('participantes_apostas')
           .select('*, apostas_disponiveis(*)') 
           .eq('usuario_id', uid)
+          .neq('status_pagamento', 'pendente')
+          .eq('status_video', 'aprovado')
           .order('created_at', ascending: false);
 
       final dadosContagem = await supabase
