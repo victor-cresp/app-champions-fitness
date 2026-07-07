@@ -17,7 +17,7 @@ class _TelaApostasDisponiveisState extends State<TelaApostasDisponiveis> {
   List<dynamic> _listaDeDesafios = [];
   List<dynamic> _minhasPendencias = [];
   bool _carregando = true;
-  final List<String> _desafiosInscritosIds = []; 
+  final List<String> _desafiosInscritosIds = [];
 
   @override
   void initState() {
@@ -241,6 +241,15 @@ class _TelaApostasDisponiveisState extends State<TelaApostasDisponiveis> {
       );
     }
 
+    // Filtra para não mostrar desafios em que o usuário já está inscrito
+    // (esses aparecem na aba DESAFIOS ou na seção de pendências acima)
+    final desafiosNaoInscritos = _listaDeDesafios.where((item) {
+      final String desafioId = item['id']?.toString() ?? '';
+      return !_desafiosInscritosIds.contains(desafioId);
+    }).toList();
+
+    final bool temDesafiosNovos = desafiosNaoInscritos.isNotEmpty;
+
     return RefreshIndicator(
       onRefresh: _carregarDesafios,
       color: Colors.greenAccent,
@@ -274,7 +283,7 @@ class _TelaApostasDisponiveisState extends State<TelaApostasDisponiveis> {
           ],
 
           // Título da seção de desafios disponíveis
-          if (temDesafiosDisponiveis) ...[
+          if (temDesafiosNovos) ...[
             Container(
               padding: const EdgeInsets.only(bottom: 8),
               child: Row(
@@ -293,9 +302,9 @@ class _TelaApostasDisponiveisState extends State<TelaApostasDisponiveis> {
                 ],
               ),
             ),
-            ..._listaDeDesafios.map((item) {
+            ...desafiosNaoInscritos.map((item) {
               final String desafioId = item['id']?.toString() ?? '';
-              final bool jaParticipa = _desafiosInscritosIds.contains(desafioId);
+              const bool jaParticipa = false; // Sempre false aqui pois já filtramos
 
               final desafio = DesafioModel(
                 id: desafioId,
