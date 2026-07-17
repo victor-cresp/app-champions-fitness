@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import '../core/supabase_client.dart';
 import '../core/date_utils.dart';
+import '../core/app_theme.dart';
 import '../models/desafio_status.dart';
 import 'detalhe_desafios.dart';
 
@@ -43,21 +44,25 @@ class _TelaApostasDisponiveisState extends State<TelaApostasDisponiveis> {
       if (uid != null) {
         // Busca inscrições do usuário para saber em quais ele já está
         final inscricoes = await supabase
-            .from('participantes_apostas')
-            .select('aposta_id, status_pagamento, status_video, apostas_disponiveis(*)')
+            .from('participantes_desafios')
+            .select('aposta_id, status_pagamento, status_video, desafios(*)')
             .eq('usuario_id', uid);
-        
+
         _desafiosInscritosIds.clear();
         _minhasPendencias.clear();
 
         for (var inscricao in inscricoes) {
           _desafiosInscritosIds.add(inscricao['aposta_id'].toString());
-          
+
           // Verifica se é uma pendência (pagamento pendente OU vídeo não aprovado)
-          final String statusPagamento = inscricao['status_pagamento'] ?? 'pendente';
+          final String statusPagamento =
+              inscricao['status_pagamento'] ?? 'pendente';
           final String statusVideo = inscricao['status_video'] ?? 'nao_enviado';
-          final bool isPendente = (statusPagamento == 'pendente' || statusVideo == 'nao_enviado' || statusVideo == 'reprovado');
-          
+          final bool isPendente =
+              (statusPagamento == 'pendente' ||
+              statusVideo == 'nao_enviado' ||
+              statusVideo == 'reprovado');
+
           if (isPendente) {
             _minhasPendencias.add(inscricao);
           }
@@ -74,31 +79,38 @@ class _TelaApostasDisponiveisState extends State<TelaApostasDisponiveis> {
       if (mounted) {
         setState(() => _carregando = false);
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text("Erro ao carregar desafios: $e"), backgroundColor: Colors.redAccent),
+          SnackBar(
+            content: Text("Erro ao carregar desafios: $e"),
+            backgroundColor: AppColors.error,
+          ),
         );
       }
     }
   }
 
-  Future<void> _inscreverNoDesafio(DesafioModel desafio, Map<String, dynamic> itemOriginal) async {
+  Future<void> _inscreverNoDesafio(
+    DesafioModel desafio,
+    Map<String, dynamic> itemOriginal,
+  ) async {
     final uid = supabase.auth.currentUser?.id;
     if (uid == null) return;
 
     try {
-      final novaInscricao = await supabase.from('participantes_apostas').insert({
-        'aposta_id': desafio.id,
-        'usuario_id': uid,
-      }).select().single(); 
+      final novaInscricao = await supabase
+          .from('participantes_desafios')
+          .insert({'aposta_id': desafio.id, 'usuario_id': uid})
+          .select()
+          .single();
 
       if (mounted) {
         // Exibe o feedback de sucesso
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(
-            content: Text("Inscrição realizada com sucesso!"), 
-            backgroundColor: Colors.green
+            content: Text("Inscrição realizada com sucesso!"),
+            backgroundColor: AppColors.success,
           ),
         );
-        
+
         // Redireciona DIRETAMENTE para a tela de detalhes do desafio recém-inscrito
         Navigator.push(
           context,
@@ -115,7 +127,10 @@ class _TelaApostasDisponiveisState extends State<TelaApostasDisponiveis> {
     } catch (e) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text("Erro ao entrar no desafio: $e"), backgroundColor: Colors.redAccent),
+          SnackBar(
+            content: Text("Erro ao entrar no desafio: $e"),
+            backgroundColor: AppColors.error,
+          ),
         );
       }
     }
@@ -123,18 +138,24 @@ class _TelaApostasDisponiveisState extends State<TelaApostasDisponiveis> {
 
   void _irParaTelaPesagem(String id) {
     ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(content: Text("Abrindo tela de pesagem inicial..."), backgroundColor: Colors.orangeAccent)
+      const SnackBar(
+        content: Text("Abrindo tela de pesagem inicial..."),
+        backgroundColor: AppColors.warning,
+      ),
     );
   }
 
   void _irParaProgresso(String id) {
     ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(content: Text("Abrindo tela de evolução/treinos..."), backgroundColor: Colors.blueAccent)
+      const SnackBar(
+        content: Text("Abrindo tela de evolução/treinos..."),
+        backgroundColor: AppColors.info,
+      ),
     );
   }
 
   Widget _buildPendenciaCard(Map<String, dynamic> inscricao) {
-    final desafio = inscricao['apostas_disponiveis'] ?? {};
+    final desafio = inscricao['desafios'] ?? {};
     final String titulo = desafio['nome'] ?? 'Desafio sem nome';
     final String statusPagamento = inscricao['status_pagamento'] ?? 'pendente';
     final String statusVideo = inscricao['status_video'] ?? 'nao_enviado';
@@ -144,34 +165,38 @@ class _TelaApostasDisponiveisState extends State<TelaApostasDisponiveis> {
     Color corPendencia;
     IconData iconePendencia;
 
-    if (statusPagamento == 'pendente' && (statusVideo == 'nao_enviado' || statusVideo == 'reprovado')) {
+    if (statusPagamento == 'pendente' &&
+        (statusVideo == 'nao_enviado' || statusVideo == 'reprovado')) {
       textoPendencia = "Pagamento e Vídeo Pendentes";
-      corPendencia = Colors.redAccent;
+      corPendencia = AppColors.error;
       iconePendencia = Icons.warning_amber_rounded;
     } else if (statusPagamento == 'pendente') {
       textoPendencia = "Pagamento Pendente";
-      corPendencia = Colors.orangeAccent;
+      corPendencia = AppColors.warning;
       iconePendencia = Icons.payment_outlined;
     } else if (statusVideo == 'nao_enviado') {
       textoPendencia = "Vídeo de Pesagem não Enviado";
-      corPendencia = Colors.redAccent;
+      corPendencia = AppColors.error;
       iconePendencia = Icons.videocam_off_outlined;
     } else if (statusVideo == 'reprovado') {
       textoPendencia = "Vídeo Reprovado - Reenvie";
-      corPendencia = Colors.redAccent;
+      corPendencia = AppColors.error;
       iconePendencia = Icons.error_outline;
     } else {
       textoPendencia = "Pendente";
-      corPendencia = Colors.orangeAccent;
+      corPendencia = AppColors.warning;
       iconePendencia = Icons.hourglass_empty;
     }
 
     return Card(
-      color: const Color(0xFF1A1A1A),
+      color: AppColors.card,
       margin: const EdgeInsets.symmetric(vertical: 6),
       shape: RoundedRectangleBorder(
         borderRadius: BorderRadius.circular(14),
-        side: BorderSide(color: corPendencia.withValues(alpha: 0.4), width: 1.5),
+        side: BorderSide(
+          color: corPendencia.withValues(alpha: 0.4),
+          width: 1.5,
+        ),
       ),
       child: InkWell(
         borderRadius: BorderRadius.circular(14),
@@ -205,17 +230,29 @@ class _TelaApostasDisponiveisState extends State<TelaApostasDisponiveis> {
                   children: [
                     Text(
                       titulo,
-                      style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 15),
+                      style: const TextStyle(
+                        color: Colors.white,
+                        fontWeight: FontWeight.bold,
+                        fontSize: 15,
+                      ),
                     ),
                     const SizedBox(height: 4),
                     Text(
                       textoPendencia,
-                      style: TextStyle(color: corPendencia, fontSize: 12, fontWeight: FontWeight.w600),
+                      style: TextStyle(
+                        color: corPendencia,
+                        fontSize: 12,
+                        fontWeight: FontWeight.w600,
+                      ),
                     ),
                   ],
                 ),
               ),
-              const Icon(Icons.arrow_forward_ios, color: Colors.white38, size: 14),
+              const Icon(
+                Icons.arrow_forward_ios,
+                color: Colors.white38,
+                size: 14,
+              ),
             ],
           ),
         ),
@@ -226,7 +263,9 @@ class _TelaApostasDisponiveisState extends State<TelaApostasDisponiveis> {
   @override
   Widget build(BuildContext context) {
     if (_carregando) {
-      return const Center(child: CircularProgressIndicator(color: Colors.greenAccent));
+      return const Center(
+        child: CircularProgressIndicator(color: AppColors.primary),
+      );
     }
 
     final bool temPendencias = _minhasPendencias.isNotEmpty;
@@ -252,7 +291,7 @@ class _TelaApostasDisponiveisState extends State<TelaApostasDisponiveis> {
 
     return RefreshIndicator(
       onRefresh: _carregarDesafios,
-      color: Colors.greenAccent,
+      color: AppColors.primary,
       child: ListView(
         padding: const EdgeInsets.all(16),
         children: [
@@ -262,12 +301,16 @@ class _TelaApostasDisponiveisState extends State<TelaApostasDisponiveis> {
               padding: const EdgeInsets.only(bottom: 8),
               child: Row(
                 children: [
-                  const Icon(Icons.warning_amber_rounded, color: Colors.orangeAccent, size: 18),
+                  const Icon(
+                    Icons.warning_amber_rounded,
+                    color: AppColors.warning,
+                    size: 18,
+                  ),
                   const SizedBox(width: 8),
                   const Text(
                     "MINHAS PENDÊNCIAS",
                     style: TextStyle(
-                      color: Colors.orangeAccent,
+                      color: AppColors.warning,
                       fontSize: 13,
                       fontWeight: FontWeight.bold,
                       letterSpacing: 1,
@@ -276,7 +319,9 @@ class _TelaApostasDisponiveisState extends State<TelaApostasDisponiveis> {
                 ],
               ),
             ),
-            ..._minhasPendencias.map((inscricao) => _buildPendenciaCard(inscricao)),
+            ..._minhasPendencias.map(
+              (inscricao) => _buildPendenciaCard(inscricao),
+            ),
             const SizedBox(height: 16),
             const Divider(color: Colors.white10),
             const SizedBox(height: 8),
@@ -288,12 +333,16 @@ class _TelaApostasDisponiveisState extends State<TelaApostasDisponiveis> {
               padding: const EdgeInsets.only(bottom: 8),
               child: Row(
                 children: [
-                  const Icon(Icons.add_circle_outline, color: Colors.greenAccent, size: 18),
+                  const Icon(
+                    Icons.add_circle_outline,
+                    color: AppColors.primary,
+                    size: 18,
+                  ),
                   const SizedBox(width: 8),
                   const Text(
                     "DESAFIOS ABERTOS",
                     style: TextStyle(
-                      color: Colors.greenAccent,
+                      color: AppColors.primary,
                       fontSize: 13,
                       fontWeight: FontWeight.bold,
                       letterSpacing: 1,
@@ -304,16 +353,29 @@ class _TelaApostasDisponiveisState extends State<TelaApostasDisponiveis> {
             ),
             ...desafiosNaoInscritos.map((item) {
               final String desafioId = item['id']?.toString() ?? '';
-              const bool jaParticipa = false; // Sempre false aqui pois já filtramos
+              const bool jaParticipa =
+                  false; // Sempre false aqui pois já filtramos
 
               final desafio = DesafioModel(
                 id: desafioId,
                 title: item['nome'] ?? 'Sem nome',
-                dataLimiteInscricao: DateTime.tryParse(item['data_limite_inscricao'] ?? '') ?? DateTime.now().add(const Duration(days: 2)),
-                dataInicio: DateTime.tryParse(item['data_inicio'] ?? '') ?? DateTime.now().add(const Duration(days: 3)),
-                dataFim: DateTime.tryParse(item['data_fim'] ?? '') ?? DateTime.now().add(const Duration(days: 30)),
-                valorEntrada: double.tryParse(item['valor_entrada']?.toString() ?? '') ?? 25.00,
-                totalParticipantes: int.tryParse(item['total_participantes']?.toString() ?? '') ?? 0,
+                dataLimiteInscricao:
+                    DateTime.tryParse(item['data_limite_inscricao'] ?? '') ??
+                    DateTime.now().add(const Duration(days: 2)),
+                dataInicio:
+                    DateTime.tryParse(item['data_inicio'] ?? '') ??
+                    DateTime.now().add(const Duration(days: 3)),
+                dataFim:
+                    DateTime.tryParse(item['data_fim'] ?? '') ??
+                    DateTime.now().add(const Duration(days: 30)),
+                valorEntrada:
+                    double.tryParse(item['valor_entrada']?.toString() ?? '') ??
+                    25.00,
+                totalParticipantes:
+                    int.tryParse(
+                      item['total_participantes']?.toString() ?? '',
+                    ) ??
+                    0,
               );
 
               return _cardDesafioReal(desafio, jaParticipa, item);
@@ -324,7 +386,11 @@ class _TelaApostasDisponiveisState extends State<TelaApostasDisponiveis> {
     );
   }
 
-  Widget _cardDesafioReal(DesafioModel desafio, bool usuarioJaInscrito, Map<String, dynamic> itemOriginal) {    
+  Widget _cardDesafioReal(
+    DesafioModel desafio,
+    bool usuarioJaInscrito,
+    Map<String, dynamic> itemOriginal,
+  ) {
     final estagio = desafio.estagio;
     final agora = DateTime.now();
 
@@ -343,25 +409,34 @@ class _TelaApostasDisponiveisState extends State<TelaApostasDisponiveis> {
 
     switch (estagio) {
       case EstagioDesafio.divulgacao:
-        corStatus = Colors.greenAccent;
-        textoStatus = agora.isAfter(desafio.dataInicio) 
-            ? "COMEÇOU HÁ $diasDeJogo ${diasDeJogo == 1 ? 'DIA' : 'DIAS'}" 
+        corStatus = AppColors.primary;
+        textoStatus = agora.isAfter(desafio.dataInicio)
+            ? "COMEÇOU HÁ $diasDeJogo ${diasDeJogo == 1 ? 'DIA' : 'DIAS'}"
             : "INSCRIÇÕES ABERTAS";
-        textoBotao = usuarioJaInscrito ? "VOCÊ JÁ ESTÁ DENTRO!" : "PARTICIPAR DO DESAFIO";
+        textoBotao = usuarioJaInscrito
+            ? "VOCÊ JÁ ESTÁ DENTRO!"
+            : "PARTICIPAR DO DESAFIO";
         botaoAtivo = !usuarioJaInscrito;
         infoExtra = Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             Text(
               "Pote Atual: R\$ ${desafio.poteTotal.toStringAsFixed(2)}",
-              style: const TextStyle(color: Colors.white, fontSize: 18, fontWeight: FontWeight.bold),
+              style: const TextStyle(
+                color: Colors.white,
+                fontSize: 18,
+                fontWeight: FontWeight.bold,
+              ),
             ),
             const SizedBox(height: 8),
             Row(
               children: [
                 _buildBadgeParticipantes(desafio.totalParticipantes),
                 const SizedBox(width: 12),
-                _buildBadgeDataLimite("Inscrições até: $dataFormatada", Colors.orangeAccent),
+                _buildBadgeDataLimite(
+                  "Inscrições até: $dataFormatada",
+                  AppColors.warning,
+                ),
               ],
             ),
           ],
@@ -369,10 +444,10 @@ class _TelaApostasDisponiveisState extends State<TelaApostasDisponiveis> {
         break;
 
       case EstagioDesafio.bloqueio:
-        corStatus = Colors.orangeAccent;
+        corStatus = AppColors.warning;
         textoStatus = "INSCRIÇÕES ENCERRADAS";
         textoBotao = "PESAGEM INICIAL OBRIGATÓRIA";
-        botaoAtivo = usuarioJaInscrito; 
+        botaoAtivo = usuarioJaInscrito;
         infoExtra = Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
@@ -385,7 +460,10 @@ class _TelaApostasDisponiveisState extends State<TelaApostasDisponiveis> {
               children: [
                 _buildBadgeParticipantes(desafio.totalParticipantes),
                 const SizedBox(width: 12),
-                _buildBadgeDataLimite("Encerradas em: $dataFormatada", Colors.white38),
+                _buildBadgeDataLimite(
+                  "Encerradas em: $dataFormatada",
+                  Colors.white38,
+                ),
               ],
             ),
           ],
@@ -393,8 +471,9 @@ class _TelaApostasDisponiveisState extends State<TelaApostasDisponiveis> {
         break;
 
       case EstagioDesafio.jogo:
-        corStatus = Colors.blueAccent;
-        textoStatus = "EM ANDAMENTO (HÁ $diasDeJogo ${diasDeJogo == 1 ? 'DIA' : 'DIAS'})";
+        corStatus = AppColors.info;
+        textoStatus =
+            "EM ANDAMENTO (HÁ $diasDeJogo ${diasDeJogo == 1 ? 'DIA' : 'DIAS'})";
         textoBotao = usuarioJaInscrito ? "VER MEU PROGRESSO" : "SALA BLOQUEADA";
         botaoAtivo = usuarioJaInscrito;
         infoExtra = Row(
@@ -402,7 +481,10 @@ class _TelaApostasDisponiveisState extends State<TelaApostasDisponiveis> {
           children: [
             const Text(
               "O cronômetro está rodando!",
-              style: TextStyle(color: Colors.white70, fontStyle: FontStyle.italic),
+              style: TextStyle(
+                color: Colors.white70,
+                fontStyle: FontStyle.italic,
+              ),
             ),
             _buildBadgeParticipantes(desafio.totalParticipantes),
           ],
@@ -410,9 +492,11 @@ class _TelaApostasDisponiveisState extends State<TelaApostasDisponiveis> {
         break;
 
       case EstagioDesafio.finalizado:
-        corStatus = Colors.redAccent;
+        corStatus = AppColors.error;
         textoStatus = "FASE FINAL (48H)";
-        textoBotao = usuarioJaInscrito ? "ENVIAR PESAGEM FINAL" : "DESAFIO CONCLUÍDO";
+        textoBotao = usuarioJaInscrito
+            ? "ENVIAR PESAGEM FINAL"
+            : "DESAFIO CONCLUÍDO";
         botaoAtivo = usuarioJaInscrito;
         infoExtra = Row(
           mainAxisAlignment: MainAxisAlignment.spaceBetween,
@@ -420,7 +504,10 @@ class _TelaApostasDisponiveisState extends State<TelaApostasDisponiveis> {
             Expanded(
               child: Text(
                 "Divisão de R\$ ${desafio.poteTotal.toStringAsFixed(2)} em apuração!",
-                style: const TextStyle(color: Colors.yellowAccent, fontWeight: FontWeight.bold),
+                style: const TextStyle(
+                  color: AppColors.accent,
+                  fontWeight: FontWeight.bold,
+                ),
               ),
             ),
             _buildBadgeParticipantes(desafio.totalParticipantes),
@@ -430,7 +517,7 @@ class _TelaApostasDisponiveisState extends State<TelaApostasDisponiveis> {
     }
 
     return Card(
-      color: const Color(0xFF1A1A1A),
+      color: AppColors.card,
       margin: const EdgeInsets.symmetric(vertical: 8),
       shape: RoundedRectangleBorder(
         borderRadius: BorderRadius.circular(16),
@@ -447,11 +534,18 @@ class _TelaApostasDisponiveisState extends State<TelaApostasDisponiveis> {
                 Expanded(
                   child: Text(
                     desafio.title,
-                    style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: Colors.white),
+                    style: const TextStyle(
+                      fontSize: 18,
+                      fontWeight: FontWeight.bold,
+                      color: Colors.white,
+                    ),
                   ),
                 ),
                 Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 10,
+                    vertical: 4,
+                  ),
                   decoration: BoxDecoration(
                     color: corStatus.withValues(alpha: 0.1),
                     borderRadius: BorderRadius.circular(20),
@@ -459,15 +553,19 @@ class _TelaApostasDisponiveisState extends State<TelaApostasDisponiveis> {
                   ),
                   child: Text(
                     textoStatus,
-                    style: TextStyle(color: corStatus, fontSize: 10, fontWeight: FontWeight.bold),
+                    style: TextStyle(
+                      color: corStatus,
+                      fontSize: 10,
+                      fontWeight: FontWeight.bold,
+                    ),
                   ),
                 ),
               ],
             ),
-            
+
             const SizedBox(height: 16),
             infoExtra,
-            
+
             const SizedBox(height: 16),
             const Divider(color: Colors.white10, height: 1),
             const SizedBox(height: 16),
@@ -476,24 +574,30 @@ class _TelaApostasDisponiveisState extends State<TelaApostasDisponiveis> {
               width: double.infinity,
               height: 44,
               child: ElevatedButton(
-                onPressed: botaoAtivo ? () {
-                  if (estagio == EstagioDesafio.divulgacao) {
-                    _inscreverNoDesafio(desafio, itemOriginal);
-                  } else if (estagio == EstagioDesafio.bloqueio) {
-                    _irParaTelaPesagem(desafio.id);
-                  } else if (estagio == EstagioDesafio.jogo) {
-                    _irParaProgresso(desafio.id);
-                  }
-                } : null,
+                onPressed: botaoAtivo
+                    ? () {
+                        if (estagio == EstagioDesafio.divulgacao) {
+                          _inscreverNoDesafio(desafio, itemOriginal);
+                        } else if (estagio == EstagioDesafio.bloqueio) {
+                          _irParaTelaPesagem(desafio.id);
+                        } else if (estagio == EstagioDesafio.jogo) {
+                          _irParaProgresso(desafio.id);
+                        }
+                      }
+                    : null,
                 style: ElevatedButton.styleFrom(
-                  backgroundColor: botaoAtivo ? Colors.greenAccent.shade400 : Colors.white12,
+                  backgroundColor: botaoAtivo
+                      ? AppColors.primary
+                      : Colors.white12,
                   disabledBackgroundColor: Colors.white10,
-                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(12),
+                  ),
                 ),
                 child: Text(
                   textoBotao,
                   style: TextStyle(
-                    color: botaoAtivo ? Colors.black : Colors.white38,
+                    color: botaoAtivo ? AppColors.onPrimary : Colors.white38,
                     fontWeight: FontWeight.bold,
                     letterSpacing: 0.5,
                   ),
@@ -510,17 +614,25 @@ class _TelaApostasDisponiveisState extends State<TelaApostasDisponiveis> {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
       decoration: BoxDecoration(
-        color: Colors.greenAccent.withValues(alpha: 0.1),
+        color: AppColors.secondary.withValues(alpha: 0.1),
         borderRadius: BorderRadius.circular(20),
       ),
       child: Row(
         mainAxisSize: MainAxisSize.min,
         children: [
-          const Icon(Icons.people_alt_outlined, size: 14, color: Colors.greenAccent),
+          const Icon(
+            Icons.people_alt_outlined,
+            size: 14,
+            color: AppColors.secondary,
+          ),
           const SizedBox(width: 6),
           Text(
             "$total ${total == 1 ? 'atleta' : 'atletas'}",
-            style: const TextStyle(color: Colors.greenAccent, fontSize: 12, fontWeight: FontWeight.bold),
+            style: const TextStyle(
+              color: AppColors.secondary,
+              fontSize: 12,
+              fontWeight: FontWeight.bold,
+            ),
           ),
         ],
       ),
@@ -541,7 +653,11 @@ class _TelaApostasDisponiveisState extends State<TelaApostasDisponiveis> {
           const SizedBox(width: 6),
           Text(
             texto,
-            style: TextStyle(color: cor, fontSize: 12, fontWeight: FontWeight.bold),
+            style: TextStyle(
+              color: cor,
+              fontSize: 12,
+              fontWeight: FontWeight.bold,
+            ),
           ),
         ],
       ),

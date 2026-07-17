@@ -3,10 +3,13 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:supabase_flutter/supabase_flutter.dart'; // 🔥 Importado para usar o RealtimeChannel
 import '../core/supabase_client.dart';
+import '../core/app_theme.dart';
 import '../asaas_service.dart';
 
 class TelaMembro extends StatefulWidget {
-  const TelaMembro({super.key});
+  final VoidCallback? onAbrirDesafios;
+
+  const TelaMembro({super.key, this.onAbrirDesafios});
 
   @override
   State<TelaMembro> createState() => _TelaMembroState();
@@ -16,6 +19,7 @@ class _TelaMembroState extends State<TelaMembro> {
   bool _carregandoStatus = true;
   bool _isMembro = false;
   bool _processandoAssinatura = false;
+  bool _mostrarCheckout = false;
   RealtimeChannel? _usuarioSubscription; // 🔥 Canal Realtime da assinatura
 
   String _metodoSelecionado = 'PIX';
@@ -66,7 +70,7 @@ class _TelaMembroState extends State<TelaMembro> {
           ),
           callback: (payload) {
             final virouMembro = payload.newRecord['is_membro'] == true;
-            
+
             if (virouMembro) {
               if (mounted) {
                 setState(() {
@@ -74,7 +78,11 @@ class _TelaMembroState extends State<TelaMembro> {
                   _pixCode = null;
                   _qrCodeBase64 = null;
                 });
-                _alerta("PRO Ativado! ⚡", "Parabéns! Seu acesso Atleta PRO está ativo em tempo real.", Colors.green);
+                _alerta(
+                  "PRO Ativado! ⚡",
+                  "Parabéns! Seu acesso Atleta PRO está ativo em tempo real.",
+                  AppColors.success,
+                );
               }
             }
           },
@@ -84,9 +92,16 @@ class _TelaMembroState extends State<TelaMembro> {
 
   Future<void> _checarStatusMembro() async {
     final uid = supabase.auth.currentUser?.id;
-    if (uid == null) return;
+    if (uid == null) {
+      if (mounted) setState(() => _carregandoStatus = false);
+      return;
+    }
     try {
-      final dados = await supabase.from('usuarios').select('is_membro').eq('id', uid).single();
+      final dados = await supabase
+          .from('usuarios')
+          .select('is_membro')
+          .eq('id', uid)
+          .single();
       if (mounted) {
         setState(() {
           _isMembro = dados['is_membro'] ?? false;
@@ -104,10 +119,20 @@ class _TelaMembroState extends State<TelaMembro> {
 
     setState(() => _processandoAssinatura = true);
     try {
-      final userDb = await supabase.from('usuarios').select('nome, cpf').eq('id', uid).single();
+      final userDb = await supabase
+          .from('usuarios')
+          .select('nome, cpf')
+          .eq('id', uid)
+          .single();
       final String cpfCliente = userDb['cpf'] ?? '';
 
       final emailUsuario = supabase.auth.currentUser?.email ?? '';
+
+      if ((userDb['nome'] ?? '').toString().trim().isEmpty ||
+          cpfCliente.trim().isEmpty ||
+          emailUsuario.trim().isEmpty) {
+        throw 'Seu cadastro precisa ter nome, CPF e e-mail antes da assinatura.';
+      }
 
       if (_metodoSelecionado == 'PIX') {
         final resultado = await AsaasService.criarAssinaturaProPix(
@@ -117,13 +142,17 @@ class _TelaMembroState extends State<TelaMembro> {
           cpfCnpjCliente: cpfCliente,
         );
 
+        if (!mounted) return;
         setState(() {
           _pixCode = resultado['pixCopiaECola'];
           _qrCodeBase64 = resultado['pixQrCodeBase64'];
-          _processandoAssinatura = false;
         });
       } else {
-        if (_nomeCard.text.isEmpty || _numCard.text.isEmpty || _mesCard.text.isEmpty || _anoCard.text.isEmpty || _cvvCard.text.isEmpty) {
+        if (_nomeCard.text.isEmpty ||
+            _numCard.text.isEmpty ||
+            _mesCard.text.isEmpty ||
+            _anoCard.text.isEmpty ||
+            _cvvCard.text.isEmpty) {
           throw "Por favor, preencha todos os campos do cartão.";
         }
 
@@ -142,24 +171,35 @@ class _TelaMembroState extends State<TelaMembro> {
         );
 
         // A confirmação visual do cartão pode ser imediata ou cair na escuta do Webhook reativo
-        setState(() {
-          _processandoAssinatura = false;
-        });
+        if (!mounted) return;
+        _alerta(
+          'Pagamento enviado',
+          'Aguarde a confirmação para ativarmos seu acesso PRO.',
+          AppColors.success,
+        );
       }
     } catch (e) {
-      setState(() => _processandoAssinatura = false);
-      _alerta("Erro", e.toString(), Colors.redAccent);
+      if (!mounted) return;
+      _alerta("Erro", e.toString(), AppColors.error);
+    } finally {
+      if (mounted) setState(() => _processandoAssinatura = false);
     }
   }
 
   void _alerta(String t, String m, Color c) {
-    if (c == Colors.redAccent) {
+    if (c == AppColors.error) {
       if (!mounted) return;
       showDialog(
         context: context,
         builder: (ctx) => AlertDialog(
-          backgroundColor: const Color(0xFF1A1A1A),
-          title: Text(t, style: const TextStyle(color: Colors.redAccent, fontWeight: FontWeight.bold)),
+          backgroundColor: AppColors.card,
+          title: Text(
+            t,
+            style: const TextStyle(
+              color: AppColors.error,
+              fontWeight: FontWeight.bold,
+            ),
+          ),
           content: SingleChildScrollView(
             child: SelectableText(
               m,
@@ -169,109 +209,666 @@ class _TelaMembroState extends State<TelaMembro> {
           actions: [
             TextButton(
               onPressed: () => Navigator.pop(ctx),
-              child: const Text("FECHAR", style: TextStyle(color: Colors.white54)),
+              child: const Text(
+                "FECHAR",
+                style: TextStyle(color: Colors.white54),
+              ),
             ),
           ],
         ),
       );
     } else {
-      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text("$t: m"), backgroundColor: c));
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text("$t: $m"), backgroundColor: c));
     }
   }
 
   @override
   Widget build(BuildContext context) {
-    if (_carregandoStatus) return const Center(child: CircularProgressIndicator(color: Colors.greenAccent));
+    if (_carregandoStatus) {
+      return const Center(
+        child: CircularProgressIndicator(color: AppColors.proPlatinum),
+      );
+    }
 
     return Scaffold(
-      backgroundColor: const Color(0xFF121212),
-      body: SingleChildScrollView(
-        padding: const EdgeInsets.all(24.0),
-        child: _isMembro ? _buildLayoutMembroAtivo() : _buildLayoutCheckout(),
+      backgroundColor: AppColors.background,
+      body: RefreshIndicator(
+        color: AppColors.proPlatinum,
+        backgroundColor: AppColors.card,
+        onRefresh: _checarStatusMembro,
+        child: SingleChildScrollView(
+          physics: const AlwaysScrollableScrollPhysics(),
+          padding: const EdgeInsets.fromLTRB(20, 20, 20, 40),
+          child: Center(
+            child: ConstrainedBox(
+              constraints: const BoxConstraints(maxWidth: 720),
+              child: _isMembro
+                  ? _buildLayoutMembroAtivo()
+                  : _buildLayoutPlano(),
+            ),
+          ),
+        ),
       ),
     );
   }
 
   Widget _buildLayoutMembroAtivo() {
-    return Center(
-      child: Column(
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        Container(
+          padding: const EdgeInsets.all(24),
+          decoration: BoxDecoration(
+            gradient: LinearGradient(
+              colors: [AppColors.proGunmetal, AppColors.proCharcoal],
+              begin: Alignment.topLeft,
+              end: Alignment.bottomRight,
+            ),
+            borderRadius: BorderRadius.circular(24),
+            border: Border.all(
+              color: AppColors.proSteel.withValues(alpha: 0.65),
+            ),
+          ),
+          child: Column(
+            children: [
+              Container(
+                width: 88,
+                height: 88,
+                decoration: BoxDecoration(
+                  color: AppColors.proGunmetal,
+                  shape: BoxShape.circle,
+                ),
+                child: const Icon(
+                  Icons.workspace_premium_rounded,
+                  size: 48,
+                  color: AppColors.proPlatinum,
+                ),
+              ),
+              const SizedBox(height: 20),
+              Container(
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 12,
+                  vertical: 6,
+                ),
+                decoration: BoxDecoration(
+                  color: AppColors.success.withValues(alpha: 0.14),
+                  borderRadius: BorderRadius.circular(30),
+                  border: Border.all(
+                    color: AppColors.success.withValues(alpha: 0.45),
+                  ),
+                ),
+                child: const Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Icon(
+                      Icons.check_circle,
+                      size: 16,
+                      color: AppColors.success,
+                    ),
+                    SizedBox(width: 6),
+                    Text(
+                      'ASSINATURA ATIVA',
+                      style: TextStyle(
+                        color: AppColors.success,
+                        fontSize: 12,
+                        fontWeight: FontWeight.w800,
+                        letterSpacing: 0.7,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              const SizedBox(height: 16),
+              const Text(
+                'Você é Atleta PRO',
+                textAlign: TextAlign.center,
+                style: TextStyle(
+                  color: AppColors.textPrimary,
+                  fontSize: 28,
+                  fontWeight: FontWeight.w900,
+                ),
+              ),
+              const SizedBox(height: 8),
+              const Text(
+                'Seu status foi confirmado e os benefícios do plano já podem ser reconhecidos pela plataforma.',
+                textAlign: TextAlign.center,
+                style: TextStyle(
+                  color: AppColors.textSecondary,
+                  fontSize: 14,
+                  height: 1.5,
+                ),
+              ),
+            ],
+          ),
+        ),
+        const SizedBox(height: 24),
+        _tituloSecao('Seu plano'),
+        const SizedBox(height: 12),
+        Container(
+          padding: const EdgeInsets.all(18),
+          decoration: BoxDecoration(
+            color: AppColors.card,
+            borderRadius: BorderRadius.circular(18),
+            border: Border.all(color: AppColors.border),
+          ),
+          child: const Row(
+            children: [
+              Icon(Icons.autorenew_rounded, color: AppColors.proSilver),
+              SizedBox(width: 14),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      'Circuito Fitness PRO mensal',
+                      style: TextStyle(
+                        color: AppColors.textPrimary,
+                        fontWeight: FontWeight.w800,
+                      ),
+                    ),
+                    SizedBox(height: 3),
+                    Text(
+                      'Status ativo • cobrança recorrente',
+                      style: TextStyle(
+                        color: AppColors.textSecondary,
+                        fontSize: 13,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              Text(
+                'R\$ 29,90',
+                style: TextStyle(
+                  color: AppColors.proPlatinum,
+                  fontWeight: FontWeight.w900,
+                  fontSize: 17,
+                ),
+              ),
+            ],
+          ),
+        ),
+        const SizedBox(height: 20),
+        SizedBox(
+          height: 52,
+          child: ElevatedButton.icon(
+            style: ElevatedButton.styleFrom(
+              backgroundColor: AppColors.proPlatinum,
+              foregroundColor: AppColors.proOnPrimary,
+            ),
+            onPressed: widget.onAbrirDesafios,
+            icon: const Icon(Icons.emoji_events_outlined),
+            label: const Text(
+              'EXPLORAR DESAFIOS',
+              style: TextStyle(fontWeight: FontWeight.w800),
+            ),
+          ),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildLayoutPlano() {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Container(
+          width: double.infinity,
+          padding: const EdgeInsets.all(24),
+          decoration: BoxDecoration(
+            gradient: LinearGradient(
+              colors: [AppColors.proGunmetal, AppColors.proCharcoal],
+              begin: Alignment.topLeft,
+              end: Alignment.bottomRight,
+            ),
+            borderRadius: BorderRadius.circular(24),
+            border: Border.all(
+              color: AppColors.proSteel.withValues(alpha: 0.7),
+            ),
+          ),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Align(
+                alignment: Alignment.center,
+                child: Image.asset(
+                  'assets/logo.png',
+                  height: 105,
+                  fit: BoxFit.contain,
+                  filterQuality: FilterQuality.high,
+                ),
+              ),
+              const SizedBox(height: 18),
+              Container(
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 10,
+                  vertical: 5,
+                ),
+                decoration: BoxDecoration(
+                  color: AppColors.proGunmetal,
+                  borderRadius: BorderRadius.circular(30),
+                ),
+                child: const Text(
+                  'CHAMPIONS PRO',
+                  style: TextStyle(
+                    color: AppColors.proPlatinum,
+                    fontSize: 12,
+                    fontWeight: FontWeight.w900,
+                    letterSpacing: 0.9,
+                  ),
+                ),
+              ),
+              const SizedBox(height: 16),
+              const Text(
+                'Mais circuito.\nMenos barreiras.',
+                style: TextStyle(
+                  color: AppColors.textPrimary,
+                  fontSize: 32,
+                  height: 1.08,
+                  fontWeight: FontWeight.w900,
+                ),
+              ),
+              const SizedBox(height: 12),
+              const Text(
+                'Tenha status de atleta PRO e uma experiência centralizada para aproveitar os benefícios do plano nos desafios do circuito.',
+                style: TextStyle(
+                  color: AppColors.textSecondary,
+                  fontSize: 14,
+                  height: 1.5,
+                ),
+              ),
+              const SizedBox(height: 22),
+              const Row(
+                crossAxisAlignment: CrossAxisAlignment.end,
+                children: [
+                  Text(
+                    'R\$ 29,90',
+                    style: TextStyle(
+                      color: AppColors.textPrimary,
+                      fontSize: 30,
+                      fontWeight: FontWeight.w900,
+                    ),
+                  ),
+                  Padding(
+                    padding: EdgeInsets.only(bottom: 5, left: 5),
+                    child: Text(
+                      '/mês',
+                      style: TextStyle(color: AppColors.textSecondary),
+                    ),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 18),
+              SizedBox(
+                width: double.infinity,
+                height: 52,
+                child: ElevatedButton(
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: AppColors.proPlatinum,
+                    foregroundColor: AppColors.proOnPrimary,
+                  ),
+                  onPressed: () => setState(() => _mostrarCheckout = true),
+                  child: const Text(
+                    'QUERO SER PRO',
+                    style: TextStyle(fontWeight: FontWeight.w900),
+                  ),
+                ),
+              ),
+              const SizedBox(height: 10),
+              const Center(
+                child: Text(
+                  'Plano mensal recorrente',
+                  style: TextStyle(color: AppColors.textMuted, fontSize: 12),
+                ),
+              ),
+            ],
+          ),
+        ),
+        const SizedBox(height: 30),
+        _tituloSecao('O que você encontra no PRO'),
+        const SizedBox(height: 12),
+        _beneficio(
+          Icons.workspace_premium_outlined,
+          'Status de Atleta PRO',
+          'Sua conta passa a ser reconhecida como membro do circuito.',
+        ),
+        const SizedBox(height: 10),
+        _beneficio(
+          Icons.emoji_events_outlined,
+          'Benefícios nos desafios',
+          'Use o plano nos desafios contemplados pelo Champions PRO.',
+        ),
+        const SizedBox(height: 10),
+        _beneficio(
+          Icons.bolt_outlined,
+          'Ativação em tempo real',
+          'Assim que o pagamento for confirmado, o status atualiza automaticamente.',
+        ),
+        const SizedBox(height: 30),
+        _tituloSecao('Como funciona'),
+        const SizedBox(height: 14),
+        _passo(1, 'Escolha PIX ou cartão'),
+        _passo(2, 'Conclua o pagamento mensal'),
+        _passo(3, 'Aguarde a confirmação e aproveite o PRO'),
+        const SizedBox(height: 28),
+        _tituloSecao('Dúvidas frequentes'),
+        const SizedBox(height: 10),
+        _faq(
+          'O pagamento é recorrente?',
+          'Sim. O Champions PRO custa R\$ 29,90 por mês e a cobrança é mensal.',
+        ),
+        _faq(
+          'Quando meu PRO é ativado?',
+          'A ativação acontece após a confirmação do pagamento. A tela acompanha essa mudança em tempo real.',
+        ),
+        _faq(
+          'As regras dos desafios mudam?',
+          'Não. Prazos, pesagens, vídeos e critérios de premiação continuam seguindo as regras de cada desafio.',
+        ),
+        if (_mostrarCheckout) ...[
+          const SizedBox(height: 30),
+          _buildCheckoutAssinatura(),
+        ],
+      ],
+    );
+  }
+
+  Widget _tituloSecao(String titulo) {
+    return Text(
+      titulo,
+      style: const TextStyle(
+        color: AppColors.textPrimary,
+        fontSize: 19,
+        fontWeight: FontWeight.w900,
+      ),
+    );
+  }
+
+  Widget _beneficio(IconData icone, String titulo, String descricao) {
+    return Container(
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: AppColors.card,
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: AppColors.border),
+      ),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          const SizedBox(height: 60),
-          const Icon(Icons.verified, size: 90, color: Colors.greenAccent),
-          const SizedBox(height: 24),
-          const Text("VOCÊ É ATLETA PRO ⚡", style: TextStyle(color: Colors.white, fontSize: 24, fontWeight: FontWeight.w900)),
-          const SizedBox(height: 12),
-          const Text("Sua assinatura está ativa. Suas inscrições em todos os desafios do aplicativo estão liberadas!", textAlign: TextAlign.center, style: TextStyle(color: Colors.white60, fontSize: 14)),
+          Container(
+            width: 42,
+            height: 42,
+            decoration: BoxDecoration(
+              color: AppColors.proGunmetal,
+              borderRadius: BorderRadius.circular(12),
+            ),
+            child: Icon(icone, color: AppColors.proPlatinum, size: 22),
+          ),
+          const SizedBox(width: 14),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  titulo,
+                  style: const TextStyle(
+                    color: AppColors.textPrimary,
+                    fontWeight: FontWeight.w800,
+                  ),
+                ),
+                const SizedBox(height: 4),
+                Text(
+                  descricao,
+                  style: const TextStyle(
+                    color: AppColors.textSecondary,
+                    fontSize: 13,
+                    height: 1.4,
+                  ),
+                ),
+              ],
+            ),
+          ),
         ],
       ),
     );
   }
 
-  Widget _buildLayoutCheckout() {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        const Text("EVOLUA PARA O", style: TextStyle(color: Colors.greenAccent, fontWeight: FontWeight.bold, fontSize: 14)),
-        const Text("CHAMPIONS PRO ⚡", style: TextStyle(color: Colors.white, fontWeight: FontWeight.w900, fontSize: 32)),
-        const SizedBox(height: 12),
-        const Text(
-          "Não assista de fora. Torne-se membro oficial do circuito, destrave o direito de participar de todos os desafios da plataforma e dispute os maiores potes da comunidade!",
-          style: TextStyle(color: Colors.white70, fontSize: 14, height: 1.4),
-        ),
-        const SizedBox(height: 24),
-        Container(
-          padding: const EdgeInsets.all(16),
-          decoration: BoxDecoration(color: const Color(0xFF1A1A1A), borderRadius: BorderRadius.circular(12), border: Border.all(color: Colors.white10)),
-          child: Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-            children: const [
-              Text("Plano Mensal Recorrente", style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
-              Text("R\$ 29,90/mês", style: TextStyle(color: Colors.greenAccent, fontSize: 18, fontWeight: FontWeight.bold)),
-            ],
+  Widget _passo(int numero, String texto) {
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 14),
+      child: Row(
+        children: [
+          Container(
+            width: 32,
+            height: 32,
+            alignment: Alignment.center,
+            decoration: const BoxDecoration(
+              color: AppColors.proPlatinum,
+              shape: BoxShape.circle,
+            ),
+            child: Text(
+              '$numero',
+              style: const TextStyle(
+                color: AppColors.proOnPrimary,
+                fontWeight: FontWeight.w900,
+              ),
+            ),
+          ),
+          const SizedBox(width: 12),
+          Expanded(
+            child: Text(
+              texto,
+              style: const TextStyle(
+                color: AppColors.textSecondary,
+                fontWeight: FontWeight.w600,
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _faq(String pergunta, String resposta) {
+    return Container(
+      margin: const EdgeInsets.only(bottom: 8),
+      decoration: BoxDecoration(
+        color: AppColors.card,
+        borderRadius: BorderRadius.circular(14),
+        border: Border.all(color: AppColors.border),
+      ),
+      child: ExpansionTile(
+        iconColor: AppColors.proSilver,
+        collapsedIconColor: AppColors.textMuted,
+        shape: const RoundedRectangleBorder(),
+        title: Text(
+          pergunta,
+          style: const TextStyle(
+            color: AppColors.textPrimary,
+            fontWeight: FontWeight.w700,
+            fontSize: 14,
           ),
         ),
-        const SizedBox(height: 32),
-        if (_qrCodeBase64 == null) ...[
+        childrenPadding: const EdgeInsets.fromLTRB(16, 0, 16, 16),
+        children: [
+          Align(
+            alignment: Alignment.centerLeft,
+            child: Text(
+              resposta,
+              style: const TextStyle(
+                color: AppColors.textSecondary,
+                fontSize: 13,
+                height: 1.45,
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildCheckoutAssinatura() {
+    return Container(
+      padding: const EdgeInsets.all(20),
+      decoration: BoxDecoration(
+        color: AppColors.card,
+        borderRadius: BorderRadius.circular(20),
+        border: Border.all(color: AppColors.proSteel.withValues(alpha: 0.65)),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
           Row(
             children: [
-              Expanded(child: _botaoAba('PIX', Icons.pix)),
-              const SizedBox(width: 12),
-              Expanded(child: _botaoAba('CARD', Icons.credit_card)),
+              const Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      'Finalizar assinatura',
+                      style: TextStyle(
+                        color: AppColors.textPrimary,
+                        fontSize: 19,
+                        fontWeight: FontWeight.w900,
+                      ),
+                    ),
+                    SizedBox(height: 3),
+                    Text(
+                      'Champions PRO • R\$ 29,90/mês',
+                      style: TextStyle(
+                        color: AppColors.textSecondary,
+                        fontSize: 12,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              IconButton(
+                tooltip: 'Fechar checkout',
+                onPressed: () => setState(() => _mostrarCheckout = false),
+                icon: const Icon(Icons.close, color: AppColors.textMuted),
+              ),
             ],
           ),
-          const SizedBox(height: 24),
-          if (_metodoSelecionatedCard()) _buildFormCartao(),
-          const SizedBox(height: 24),
-          SizedBox(
-            width: double.infinity, height: 50,
-            child: ElevatedButton(
-              style: ElevatedButton.styleFrom(backgroundColor: Colors.greenAccent.shade400),
-              onPressed: _processandoAssinatura ? null : _assinarPlanoPro,
-              child: _processandoAssinatura 
-                ? const CircularProgressIndicator(color: Colors.black)
-                : const Text("ATIVAR MEMBRO PRO", style: TextStyle(color: Colors.black, fontWeight: FontWeight.bold)),
-            ),
-          ),
-        ] else ...[
-          Center(
-            child: Column(
+          const SizedBox(height: 18),
+          if (_qrCodeBase64 == null) ...[
+            Row(
               children: [
-                Container(padding: const EdgeInsets.all(12), decoration: BoxDecoration(color: Colors.white, borderRadius: BorderRadius.circular(12)), child: Image.memory(base64Decode(_qrCodeBase64!), width: 200, height: 200)),
-                const SizedBox(height: 16),
-                ElevatedButton.icon(
-                  icon: const Icon(Icons.copy, color: Colors.black),
-                  label: const Text("COPIAR PIX COPIA E COLA", style: TextStyle(color: Colors.black, fontWeight: FontWeight.bold)),
-                  style: ElevatedButton.styleFrom(backgroundColor: Colors.greenAccent),
-                  onPressed: () {
-                    Clipboard.setData(ClipboardData(text: _pixCode ?? ''));
-                    _alerta("Copiado", "Código do Pix na área de transferência", Colors.green);
-                  },
-                ),
+                Expanded(child: _botaoAba('PIX', Icons.pix)),
+                const SizedBox(width: 10),
+                Expanded(child: _botaoAba('CARD', Icons.credit_card)),
               ],
             ),
-          )
-        ]
-      ],
+            const SizedBox(height: 20),
+            if (_metodoSelecionatedCard()) _buildFormCartao(),
+            if (!_metodoSelecionatedCard())
+              const Text(
+                'O QR Code será exibido aqui. Após o pagamento, aguarde a confirmação automática.',
+                style: TextStyle(
+                  color: AppColors.textSecondary,
+                  fontSize: 13,
+                  height: 1.45,
+                ),
+              ),
+            const SizedBox(height: 20),
+            SizedBox(
+              width: double.infinity,
+              height: 50,
+              child: ElevatedButton(
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: AppColors.proPlatinum,
+                  foregroundColor: AppColors.proOnPrimary,
+                ),
+                onPressed: _processandoAssinatura ? null : _assinarPlanoPro,
+                child: _processandoAssinatura
+                    ? const SizedBox(
+                        width: 22,
+                        height: 22,
+                        child: CircularProgressIndicator(
+                          color: AppColors.proOnPrimary,
+                          strokeWidth: 2.5,
+                        ),
+                      )
+                    : Text(
+                        _metodoSelecionatedCard()
+                            ? 'ASSINAR COM CARTÃO'
+                            : 'GERAR PIX',
+                        style: const TextStyle(fontWeight: FontWeight.w900),
+                      ),
+              ),
+            ),
+            const SizedBox(height: 10),
+            const Center(
+              child: Text(
+                'Cobrança mensal recorrente de R\$ 29,90',
+                style: TextStyle(color: AppColors.textMuted, fontSize: 11),
+              ),
+            ),
+          ] else ...[
+            Center(
+              child: Column(
+                children: [
+                  const Text(
+                    'Escaneie para pagar',
+                    style: TextStyle(
+                      color: AppColors.textPrimary,
+                      fontSize: 17,
+                      fontWeight: FontWeight.w800,
+                    ),
+                  ),
+                  const SizedBox(height: 14),
+                  Container(
+                    padding: const EdgeInsets.all(12),
+                    decoration: BoxDecoration(
+                      color: Colors.white,
+                      borderRadius: BorderRadius.circular(14),
+                    ),
+                    child: Image.memory(
+                      base64Decode(_qrCodeBase64!),
+                      width: 200,
+                      height: 200,
+                    ),
+                  ),
+                  const SizedBox(height: 16),
+                  SizedBox(
+                    width: double.infinity,
+                    child: OutlinedButton.icon(
+                      icon: const Icon(Icons.copy),
+                      label: const Text(
+                        'COPIAR PIX COPIA E COLA',
+                        style: TextStyle(fontWeight: FontWeight.w800),
+                      ),
+                      style: OutlinedButton.styleFrom(
+                        foregroundColor: AppColors.proPlatinum,
+                        side: const BorderSide(color: AppColors.proSilver),
+                      ),
+                      onPressed: () {
+                        Clipboard.setData(ClipboardData(text: _pixCode ?? ''));
+                        _alerta(
+                          'Copiado',
+                          'Código Pix copiado para a área de transferência.',
+                          AppColors.success,
+                        );
+                      },
+                    ),
+                  ),
+                  const SizedBox(height: 12),
+                  const Text(
+                    'A tela será atualizada quando o pagamento for confirmado.',
+                    textAlign: TextAlign.center,
+                    style: TextStyle(
+                      color: AppColors.textSecondary,
+                      fontSize: 12,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ],
+        ],
+      ),
     );
   }
 
@@ -280,8 +877,12 @@ class _TelaMembroState extends State<TelaMembro> {
   Widget _botaoAba(String id, IconData ico) {
     final sel = _metodoSelecionado == id;
     return ElevatedButton.icon(
-      icon: Icon(ico, size: 16), label: Text(id),
-      style: ElevatedButton.styleFrom(backgroundColor: sel ? Colors.greenAccent.shade400 : Colors.white10, foregroundColor: sel ? Colors.black : Colors.white70),
+      icon: Icon(ico, size: 16),
+      label: Text(id == 'CARD' ? 'CARTÃO' : id),
+      style: ElevatedButton.styleFrom(
+        backgroundColor: sel ? AppColors.proPlatinum : Colors.white10,
+        foregroundColor: sel ? AppColors.proOnPrimary : Colors.white70,
+      ),
       onPressed: () => setState(() => _metodoSelecionado = id),
     );
   }
@@ -291,29 +892,81 @@ class _TelaMembroState extends State<TelaMembro> {
       children: [
         _input(_nomeCard, "Nome no Cartão", Icons.person),
         const SizedBox(height: 12),
-        _input(_numCard, "Número do Cartão", Icons.credit_card, tecladoNumerico: true),
+        _input(
+          _numCard,
+          "Número do Cartão",
+          Icons.credit_card,
+          tecladoNumerico: true,
+          tamanhoMaximo: 19,
+        ),
         const SizedBox(height: 12),
         Row(
           children: [
-            Expanded(child: _input(_mesCard, "Mês (MM)", Icons.calendar_today, tecladoNumerico: true)),
+            Expanded(
+              child: _input(
+                _mesCard,
+                "Mês (MM)",
+                Icons.calendar_today,
+                tecladoNumerico: true,
+                tamanhoMaximo: 2,
+              ),
+            ),
             const SizedBox(width: 8),
-            Expanded(child: _input(_anoCard, "Ano (AAAA)", Icons.calendar_today, tecladoNumerico: true)),
+            Expanded(
+              child: _input(
+                _anoCard,
+                "Ano (AAAA)",
+                Icons.calendar_today,
+                tecladoNumerico: true,
+                tamanhoMaximo: 4,
+              ),
+            ),
             const SizedBox(width: 8),
-            Expanded(child: _input(_cvvCard, "CVV", Icons.lock, tecladoNumerico: true)),
+            Expanded(
+              child: _input(
+                _cvvCard,
+                "CVV",
+                Icons.lock,
+                tecladoNumerico: true,
+                tamanhoMaximo: 4,
+                ocultarTexto: true,
+              ),
+            ),
           ],
-        )
+        ),
       ],
     );
   }
 
-  Widget _input(TextEditingController c, String l, IconData i, {bool tecladoNumerico = false}) {
+  Widget _input(
+    TextEditingController c,
+    String l,
+    IconData i, {
+    bool tecladoNumerico = false,
+    int? tamanhoMaximo,
+    bool ocultarTexto = false,
+  }) {
     return TextFormField(
-      controller: c, 
+      controller: c,
       style: const TextStyle(color: Colors.white),
       keyboardType: tecladoNumerico ? TextInputType.number : TextInputType.text,
+      obscureText: ocultarTexto,
+      inputFormatters: tecladoNumerico
+          ? [
+              FilteringTextInputFormatter.digitsOnly,
+              if (tamanhoMaximo != null)
+                LengthLimitingTextInputFormatter(tamanhoMaximo),
+            ]
+          : null,
       decoration: InputDecoration(
-        labelText: l, prefixIcon: Icon(i, color: Colors.greenAccent, size: 18),
-        filled: true, fillColor: Colors.white10, border: OutlineInputBorder(borderRadius: BorderRadius.circular(8), borderSide: BorderSide.none),
+        labelText: l,
+        prefixIcon: Icon(i, color: AppColors.proSilver, size: 18),
+        filled: true,
+        fillColor: Colors.white10,
+        border: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(8),
+          borderSide: BorderSide.none,
+        ),
       ),
     );
   }

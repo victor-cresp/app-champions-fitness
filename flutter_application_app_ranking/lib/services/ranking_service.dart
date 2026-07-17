@@ -2,18 +2,20 @@ import '../core/supabase_client.dart';
 
 class RankingService {
   // Busca a lista de ranking por bairro direto do Supabase
-Future<List<dynamic>> buscarRanking(String bairro) async {
+  Future<List<dynamic>> buscarRanking(String bairro) async {
     try {
       final response = await supabase
-          .from('ranking_bairros') // <-- Confirme se esse nome está idêntico no painel do Supabase
+          .from(
+            'ranking_bairros',
+          ) // <-- Confirme se esse nome está idêntico no painel do Supabase
           .select()
-          .eq('bairro_id', bairro) 
+          .eq('bairro_id', bairro)
           .order('total_pontos', ascending: false);
 
       return response as List<dynamic>;
     } catch (e) {
       // Isso vai cuspir o erro exato do Supabase no seu terminal do VS Code / Cursor
-      print("ERRO DO SUPABASE AQUI: $e"); 
+      print("ERRO DO SUPABASE AQUI: $e");
       return [];
     }
   }

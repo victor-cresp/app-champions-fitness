@@ -15,9 +15,9 @@ class TelaDetalhesDesafio extends StatefulWidget {
   final Map<String, dynamic> desafioData;
 
   const TelaDetalhesDesafio({
-    super.key, 
-    required this.inscricaoData, 
-    required this.desafioData
+    super.key,
+    required this.inscricaoData,
+    required this.desafioData,
   });
 
   @override
@@ -26,8 +26,8 @@ class TelaDetalhesDesafio extends StatefulWidget {
 
 class _TelaDetalhesDesafioState extends State<TelaDetalhesDesafio> {
   bool _processandoPagamento = false;
-  RealtimeChannel? _inscricaoSubscription; 
-  late String _statusPagamentoAtual;       
+  RealtimeChannel? _inscricaoSubscription;
+  late String _statusPagamentoAtual;
 
   final _nomeCartaoController = TextEditingController();
   final _numeroCartaoController = TextEditingController();
@@ -38,8 +38,9 @@ class _TelaDetalhesDesafioState extends State<TelaDetalhesDesafio> {
   @override
   void initState() {
     super.initState();
-    _statusPagamentoAtual = widget.inscricaoData['status_pagamento'] ?? 'pendente';
-    _escutarMudancasPagamento(); 
+    _statusPagamentoAtual =
+        widget.inscricaoData['status_pagamento'] ?? 'pendente';
+    _escutarMudancasPagamento();
   }
 
   @override
@@ -61,28 +62,32 @@ class _TelaDetalhesDesafioState extends State<TelaDetalhesDesafio> {
     if (inscricaoId == null || inscricaoId.isEmpty) return;
 
     _inscricaoSubscription = supabase
-        .channel('public:participantes_apostas:id=eq.$inscricaoId')
+        .channel('public:participantes_desafios:id=eq.$inscricaoId')
         .onPostgresChanges(
           event: PostgresChangeEvent.update,
           schema: 'public',
-          table: 'participantes_apostas',
+          table: 'participantes_desafios',
           filter: PostgresChangeFilter(
             type: PostgresChangeFilterType.eq,
             column: 'id',
             value: inscricaoId,
           ),
           callback: (payload) {
-            final novoStatus = payload.newRecord['status_pagamento']?.toString() ?? 'pendente';
-            
+            final novoStatus =
+                payload.newRecord['status_pagamento']?.toString() ?? 'pendente';
+
             if (novoStatus == 'pago') {
               if (mounted) {
                 if (Navigator.canPop(context)) {
-                  Navigator.pop(context); 
+                  Navigator.pop(context);
                 }
                 setState(() {
                   _statusPagamentoAtual = 'pago';
                 });
-                _mostrarSnack("🎉 Pagamento do Desafio confirmado com sucesso!", Colors.green);
+                _mostrarSnack(
+                  "🎉 Pagamento do Desafio confirmado com sucesso!",
+                  AppColors.success,
+                );
               }
             }
           },
@@ -114,7 +119,11 @@ class _TelaDetalhesDesafioState extends State<TelaDetalhesDesafio> {
         throw "Seu cadastro está incompleto. Por favor, atualize seu Nome e CPF no Perfil antes de pagar.";
       }
 
-      final double valorDoDesafio = double.tryParse(widget.desafioData['valor_entrada']?.toString() ?? '') ?? 0.0;
+      final double valorDoDesafio =
+          double.tryParse(
+            widget.desafioData['valor_entrada']?.toString() ?? '',
+          ) ??
+          0.0;
       final String nomeDoDesafio = widget.desafioData['nome'] ?? 'Desafio';
 
       final emailUsuario = usuarioAtual.email ?? '';
@@ -134,7 +143,7 @@ class _TelaDetalhesDesafioState extends State<TelaDetalhesDesafio> {
         setModalState(() {
           _processandoPagamento = false;
           dadosCartao?['pixCopiaECola'] = resultado['pixCopiaECola'];
-          dadosCartao?['pixQrCodeBase64'] = resultado['pixQrCodeBase64']; 
+          dadosCartao?['pixQrCodeBase64'] = resultado['pixQrCodeBase64'];
           dadosCartao?['invoiceUrl'] = resultado['invoiceUrl'];
         });
       } else {
@@ -159,7 +168,10 @@ class _TelaDetalhesDesafioState extends State<TelaDetalhesDesafio> {
           if (Navigator.canPop(context)) {
             Navigator.pop(context);
           }
-          _mostrarSnack("✅ Inscrição confirmada com sucesso via Cartão!", Colors.green);
+          _mostrarSnack(
+            "✅ Inscrição confirmada com sucesso via Cartão!",
+            AppColors.success,
+          );
         }
       }
     } catch (e) {
@@ -170,7 +182,9 @@ class _TelaDetalhesDesafioState extends State<TelaDetalhesDesafio> {
 
   void _mostrarSnack(String msg, Color col) {
     if (!mounted) return;
-    ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(msg), backgroundColor: col));
+    ScaffoldMessenger.of(
+      context,
+    ).showSnackBar(SnackBar(content: Text(msg), backgroundColor: col));
   }
 
   void _mostrarDialogErro(String titulo, String mensagem) {
@@ -178,8 +192,14 @@ class _TelaDetalhesDesafioState extends State<TelaDetalhesDesafio> {
     showDialog(
       context: context,
       builder: (context) => AlertDialog(
-        backgroundColor: const Color(0xFF1A1A1A),
-        title: Text(titulo, style: const TextStyle(color: Colors.redAccent, fontWeight: FontWeight.bold)),
+        backgroundColor: AppColors.card,
+        title: Text(
+          titulo,
+          style: const TextStyle(
+            color: AppColors.error,
+            fontWeight: FontWeight.bold,
+          ),
+        ),
         content: SingleChildScrollView(
           child: SelectableText(
             mensagem,
@@ -189,7 +209,10 @@ class _TelaDetalhesDesafioState extends State<TelaDetalhesDesafio> {
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(context),
-            child: const Text("FECHAR", style: TextStyle(color: Colors.white54)),
+            child: const Text(
+              "FECHAR",
+              style: TextStyle(color: Colors.white54),
+            ),
           ),
         ],
       ),
@@ -197,32 +220,54 @@ class _TelaDetalhesDesafioState extends State<TelaDetalhesDesafio> {
   }
 
   void _abrirModalPagamento() {
-    String metodoAbas = 'PIX'; 
+    String metodoAbas = 'PIX';
     String? pixStringCopiaECola;
     String? qrCodeBase64;
 
-    final double valorExibicao = double.tryParse(widget.desafioData['valor_entrada']?.toString() ?? '') ?? 0.0;
+    final double valorExibicao =
+        double.tryParse(
+          widget.desafioData['valor_entrada']?.toString() ?? '',
+        ) ??
+        0.0;
 
     showModalBottomSheet(
       context: context,
       isScrollControlled: true,
-      backgroundColor: const Color(0xFF1A1A1A),
-      shape: const RoundedRectangleBorder(borderRadius: BorderRadius.vertical(top: Radius.circular(20))),
+      backgroundColor: AppColors.card,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+      ),
       builder: (context) {
         return StatefulBuilder(
           builder: (BuildContext context, StateSetter setModalState) {
             return Padding(
               padding: EdgeInsets.only(
-                top: 20, left: 20, right: 20,
-                bottom: MediaQuery.of(context).viewInsets.bottom + 20, 
+                top: 20,
+                left: 20,
+                right: 20,
+                bottom: MediaQuery.of(context).viewInsets.bottom + 20,
               ),
               child: SingleChildScrollView(
                 child: Column(
                   mainAxisSize: MainAxisSize.min,
                   children: [
-                    Container(width: 40, height: 4, decoration: BoxDecoration(color: Colors.white24, borderRadius: BorderRadius.circular(10))),
+                    Container(
+                      width: 40,
+                      height: 4,
+                      decoration: BoxDecoration(
+                        color: Colors.white24,
+                        borderRadius: BorderRadius.circular(10),
+                      ),
+                    ),
                     const SizedBox(height: 20),
-                    const Text("Escolha a Forma de Pagamento", style: TextStyle(color: Colors.white, fontSize: 18, fontWeight: FontWeight.bold)),
+                    const Text(
+                      "Escolha a Forma de Pagamento",
+                      style: TextStyle(
+                        color: Colors.white,
+                        fontSize: 18,
+                        fontWeight: FontWeight.bold,
+                      ),
+                    ),
                     const SizedBox(height: 20),
 
                     if (qrCodeBase64 == null)
@@ -233,10 +278,15 @@ class _TelaDetalhesDesafioState extends State<TelaDetalhesDesafio> {
                               icon: const Icon(Icons.pix, size: 18),
                               label: const Text("PIX"),
                               style: ElevatedButton.styleFrom(
-                                backgroundColor: metodoAbas == 'PIX' ? Colors.greenAccent.shade400 : Colors.white10,
-                                foregroundColor: metodoAbas == 'PIX' ? Colors.black : Colors.white70,
+                                backgroundColor: metodoAbas == 'PIX'
+                                    ? AppColors.primary
+                                    : Colors.white10,
+                                foregroundColor: metodoAbas == 'PIX'
+                                    ? AppColors.onPrimary
+                                    : Colors.white70,
                               ),
-                              onPressed: () => setModalState(() => metodoAbas = 'PIX'),
+                              onPressed: () =>
+                                  setModalState(() => metodoAbas = 'PIX'),
                             ),
                           ),
                           const SizedBox(width: 12),
@@ -245,10 +295,15 @@ class _TelaDetalhesDesafioState extends State<TelaDetalhesDesafio> {
                               icon: const Icon(Icons.credit_card, size: 18),
                               label: const Text("Cartão"),
                               style: ElevatedButton.styleFrom(
-                                backgroundColor: metodoAbas == 'CARD' ? Colors.greenAccent.shade400 : Colors.white10,
-                                foregroundColor: metodoAbas == 'CARD' ? Colors.black : Colors.white70,
+                                backgroundColor: metodoAbas == 'CARD'
+                                    ? AppColors.primary
+                                    : Colors.white10,
+                                foregroundColor: metodoAbas == 'CARD'
+                                    ? AppColors.onPrimary
+                                    : Colors.white70,
                               ),
-                              onPressed: () => setModalState(() => metodoAbas = 'CARD'),
+                              onPressed: () =>
+                                  setModalState(() => metodoAbas = 'CARD'),
                             ),
                           ),
                         ],
@@ -260,61 +315,109 @@ class _TelaDetalhesDesafioState extends State<TelaDetalhesDesafio> {
                         Text(
                           "A taxa de inscrição para este desafio será gerada no valor de R\$ ${valorExibicao.toStringAsFixed(2)}. O código Pix expira em 24h.",
                           textAlign: TextAlign.center,
-                          style: const TextStyle(color: Colors.white60, fontSize: 13),
+                          style: const TextStyle(
+                            color: Colors.white60,
+                            fontSize: 13,
+                          ),
                         ),
                         const SizedBox(height: 24),
                         SizedBox(
-                          width: double.infinity, height: 48,
+                          width: double.infinity,
+                          height: 48,
                           child: ElevatedButton(
-                            style: ElevatedButton.styleFrom(backgroundColor: Colors.greenAccent.shade400),
-                            onPressed: _processandoPagamento ? null : () async {
-                              final Map<String, dynamic> pixContainer = {};
-                              await _processarPagamentoTransparente(
-                                formaPagamento: 'PIX',
-                                dadosCartao: pixContainer,
-                                setModalState: setModalState,
-                              );
-                              setModalState(() {
-                                pixStringCopiaECola = pixContainer['pixCopiaECola'];
-                                qrCodeBase64 = pixContainer['pixQrCodeBase64'];
-                              });
-                            },
-                            child: _processandoPagamento 
-                                ? const CircularProgressIndicator(color: Colors.black)
-                                : const Text("GERAR QR CODE PIX", style: TextStyle(color: Colors.black, fontWeight: FontWeight.bold)),
+                            style: ElevatedButton.styleFrom(
+                              backgroundColor: AppColors.primary,
+                            ),
+                            onPressed: _processandoPagamento
+                                ? null
+                                : () async {
+                                    final Map<String, dynamic> pixContainer =
+                                        {};
+                                    await _processarPagamentoTransparente(
+                                      formaPagamento: 'PIX',
+                                      dadosCartao: pixContainer,
+                                      setModalState: setModalState,
+                                    );
+                                    setModalState(() {
+                                      pixStringCopiaECola =
+                                          pixContainer['pixCopiaECola'];
+                                      qrCodeBase64 =
+                                          pixContainer['pixQrCodeBase64'];
+                                    });
+                                  },
+                            child: _processandoPagamento
+                                ? const CircularProgressIndicator(
+                                    color: AppColors.onPrimary,
+                                  )
+                                : const Text(
+                                    "GERAR QR CODE PIX",
+                                    style: TextStyle(
+                                      color: AppColors.onPrimary,
+                                      fontWeight: FontWeight.bold,
+                                    ),
+                                  ),
                           ),
                         ),
                       ] else ...[
                         Container(
                           padding: const EdgeInsets.all(12),
-                          decoration: BoxDecoration(color: Colors.white, borderRadius: BorderRadius.circular(12)),
-                          child: Image.memory(base64Decode(qrCodeBase64!), width: 200, height: 200),
+                          decoration: BoxDecoration(
+                            color: Colors.white,
+                            borderRadius: BorderRadius.circular(12),
+                          ),
+                          child: Image.memory(
+                            base64Decode(qrCodeBase64!),
+                            width: 200,
+                            height: 200,
+                          ),
                         ),
                         const SizedBox(height: 16),
                         ElevatedButton.icon(
-                          icon: const Icon(Icons.copy, color: Colors.black),
-                          label: const Text("COPIAR PIX COPIA E COLA", style: TextStyle(color: Colors.black, fontWeight: FontWeight.bold)),
-                          style: ElevatedButton.styleFrom(backgroundColor: Colors.greenAccent),
+                          icon: const Icon(
+                            Icons.copy,
+                            color: AppColors.onPrimary,
+                          ),
+                          label: const Text(
+                            "COPIAR PIX COPIA E COLA",
+                            style: TextStyle(
+                              color: AppColors.onPrimary,
+                              fontWeight: FontWeight.bold,
+                            ),
+                          ),
+                          style: ElevatedButton.styleFrom(
+                            backgroundColor: AppColors.primary,
+                          ),
                           onPressed: () {
-                            Clipboard.setData(ClipboardData(text: pixStringCopiaECola ?? ''));
-                            _mostrarSnack("📋 Código Copiado!", Colors.green);
+                            Clipboard.setData(
+                              ClipboardData(text: pixStringCopiaECola ?? ''),
+                            );
+                            _mostrarSnack(
+                              "📋 Código Copiado!",
+                              AppColors.success,
+                            );
                           },
                         ),
-                      ]
+                      ],
                     ],
 
                     if (metodoAbas == 'CARD') ...[
                       TextFormField(
                         controller: _nomeCartaoController,
                         style: const TextStyle(color: Colors.white),
-                        decoration: _buildInputModalDecoration("Nome impresso no Cartão", Icons.person_outline),
+                        decoration: _buildInputModalDecoration(
+                          "Nome impresso no Cartão",
+                          Icons.person_outline,
+                        ),
                       ),
                       const SizedBox(height: 12),
                       TextFormField(
                         controller: _numeroCartaoController,
                         keyboardType: TextInputType.number,
                         style: const TextStyle(color: Colors.white),
-                        decoration: _buildInputModalDecoration("Número do Cartão", Icons.credit_card_outlined),
+                        decoration: _buildInputModalDecoration(
+                          "Número do Cartão",
+                          Icons.credit_card_outlined,
+                        ),
                       ),
                       const SizedBox(height: 12),
                       Row(
@@ -324,7 +427,10 @@ class _TelaDetalhesDesafioState extends State<TelaDetalhesDesafio> {
                               controller: _mesCartaoController,
                               keyboardType: TextInputType.number,
                               style: const TextStyle(color: Colors.white),
-                              decoration: _buildInputModalDecoration("Mês (MM)", Icons.calendar_today),
+                              decoration: _buildInputModalDecoration(
+                                "Mês (MM)",
+                                Icons.calendar_today,
+                              ),
                             ),
                           ),
                           const SizedBox(width: 10),
@@ -333,7 +439,10 @@ class _TelaDetalhesDesafioState extends State<TelaDetalhesDesafio> {
                               controller: _anoCartaoController,
                               keyboardType: TextInputType.number,
                               style: const TextStyle(color: Colors.white),
-                              decoration: _buildInputModalDecoration("Ano (AAAA)", Icons.calendar_today),
+                              decoration: _buildInputModalDecoration(
+                                "Ano (AAAA)",
+                                Icons.calendar_today,
+                              ),
                             ),
                           ),
                           const SizedBox(width: 10),
@@ -342,36 +451,61 @@ class _TelaDetalhesDesafioState extends State<TelaDetalhesDesafio> {
                               controller: _cvvCartaoController,
                               keyboardType: TextInputType.number,
                               style: const TextStyle(color: Colors.white),
-                              decoration: _buildInputModalDecoration("CVV", Icons.lock_outline),
+                              decoration: _buildInputModalDecoration(
+                                "CVV",
+                                Icons.lock_outline,
+                              ),
                             ),
                           ),
                         ],
                       ),
                       const SizedBox(height: 24),
                       SizedBox(
-                        width: double.infinity, height: 48,
+                        width: double.infinity,
+                        height: 48,
                         child: ElevatedButton(
-                          style: ElevatedButton.styleFrom(backgroundColor: Colors.greenAccent.shade400),
-                          onPressed: _processandoPagamento ? null : () {
-                            if (_nomeCartaoController.text.isEmpty || _numeroCartaoController.text.isEmpty || _cvvCartaoController.text.isEmpty) {
-                              _mostrarSnack("Preencha todos os campos do cartão.", Colors.orangeAccent);
-                              return;
-                            }
-                            _processarPagamentoTransparente(
-                              formaPagamento: 'CREDIT_CARD',
-                              setModalState: setModalState,
-                              dadosCartao: {
-                                'holderName': _nomeCartaoController.text.trim(),
-                                'number': _numeroCartaoController.text.trim(),
-                                'expiryMonth': _mesCartaoController.text.trim(),
-                                'expiryYear': _anoCartaoController.text.trim(),
-                                'ccv': _cvvCartaoController.text.trim()
-                              }
-                            );
-                          },
+                          style: ElevatedButton.styleFrom(
+                            backgroundColor: AppColors.primary,
+                          ),
+                          onPressed: _processandoPagamento
+                              ? null
+                              : () {
+                                  if (_nomeCartaoController.text.isEmpty ||
+                                      _numeroCartaoController.text.isEmpty ||
+                                      _cvvCartaoController.text.isEmpty) {
+                                    _mostrarSnack(
+                                      "Preencha todos os campos do cartão.",
+                                      AppColors.warning,
+                                    );
+                                    return;
+                                  }
+                                  _processarPagamentoTransparente(
+                                    formaPagamento: 'CREDIT_CARD',
+                                    setModalState: setModalState,
+                                    dadosCartao: {
+                                      'holderName': _nomeCartaoController.text
+                                          .trim(),
+                                      'number': _numeroCartaoController.text
+                                          .trim(),
+                                      'expiryMonth': _mesCartaoController.text
+                                          .trim(),
+                                      'expiryYear': _anoCartaoController.text
+                                          .trim(),
+                                      'ccv': _cvvCartaoController.text.trim(),
+                                    },
+                                  );
+                                },
                           child: _processandoPagamento
-                              ? const CircularProgressIndicator(color: Colors.black)
-                              : const Text("CONFIRMAR PAGAMENTO", style: TextStyle(color: Colors.black, fontWeight: FontWeight.bold)),
+                              ? const CircularProgressIndicator(
+                                  color: AppColors.onPrimary,
+                                )
+                              : const Text(
+                                  "CONFIRMAR PAGAMENTO",
+                                  style: TextStyle(
+                                    color: AppColors.onPrimary,
+                                    fontWeight: FontWeight.bold,
+                                  ),
+                                ),
                         ),
                       ),
                     ],
@@ -394,30 +528,52 @@ class _TelaDetalhesDesafioState extends State<TelaDetalhesDesafio> {
     return buildInputDecoration(label: label, icon: icon).copyWith(
       fillColor: Colors.white.withValues(alpha: 0.03),
       contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 12),
-      border: OutlineInputBorder(borderRadius: BorderRadius.circular(8), borderSide: BorderSide.none),
-      focusedBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(8), borderSide: const BorderSide(color: AppColors.primary)),
+      border: OutlineInputBorder(
+        borderRadius: BorderRadius.circular(8),
+        borderSide: BorderSide.none,
+      ),
+      focusedBorder: OutlineInputBorder(
+        borderRadius: BorderRadius.circular(8),
+        borderSide: const BorderSide(color: AppColors.primary),
+      ),
     );
   }
 
   @override
   Widget build(BuildContext context) {
     final String titulo = widget.desafioData['nome'] ?? 'Detalhes do Desafio';
-    final String descricao = widget.desafioData['descricao'] ?? 'Sem descrição disponível.';
-    final double valor = double.tryParse(widget.desafioData['valor_entrada']?.toString() ?? '') ?? 0.0;
-    
-    final dataInicio = DateTime.tryParse(widget.desafioData['data_inicio'] ?? '') ?? DateTime.now();
-    final dataFim = DateTime.tryParse(widget.desafioData['data_fim'] ?? '') ?? DateTime.now();
+    final String descricao =
+        widget.desafioData['descricao'] ?? 'Sem descrição disponível.';
+    final double valor =
+        double.tryParse(
+          widget.desafioData['valor_entrada']?.toString() ?? '',
+        ) ??
+        0.0;
+
+    final dataInicio =
+        DateTime.tryParse(widget.desafioData['data_inicio'] ?? '') ??
+        DateTime.now();
+    final dataFim =
+        DateTime.tryParse(widget.desafioData['data_fim'] ?? '') ??
+        DateTime.now();
     final String inicioFormatado = dataInicio.formatted;
     final String fimFormatado = dataFim.formatted;
 
-    final String statusPagamento = _statusPagamentoAtual; 
-    final String statusVideo = widget.inscricaoData['status_video'] ?? 'nao_enviado';
+    final String statusPagamento = _statusPagamentoAtual;
+    final String statusVideo =
+        widget.inscricaoData['status_video'] ?? 'nao_enviado';
 
     return Scaffold(
-      backgroundColor: const Color(0xFF121212),
+      backgroundColor: AppColors.background,
       appBar: AppBar(
-        title: Text(titulo, style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
-        backgroundColor: const Color(0xFF1A1A1A),
+        title: Text(
+          titulo,
+          style: const TextStyle(
+            color: Colors.white,
+            fontWeight: FontWeight.bold,
+          ),
+        ),
+        backgroundColor: AppColors.card,
         iconTheme: const IconThemeData(color: Colors.white),
         elevation: 0,
       ),
@@ -430,25 +586,43 @@ class _TelaDetalhesDesafioState extends State<TelaDetalhesDesafio> {
               width: double.infinity,
               padding: const EdgeInsets.all(16),
               decoration: BoxDecoration(
-                color: const Color(0xFF1A1A1A),
+                color: AppColors.card,
                 borderRadius: BorderRadius.circular(16),
                 border: Border.all(color: Colors.white10),
               ),
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  const Text("VALOR DA INSCRIÇÃO", style: TextStyle(color: Colors.white54, fontSize: 12, fontWeight: FontWeight.bold)),
+                  const Text(
+                    "VALOR DA INSCRIÇÃO",
+                    style: TextStyle(
+                      color: Colors.white54,
+                      fontSize: 12,
+                      fontWeight: FontWeight.bold,
+                    ),
+                  ),
                   const SizedBox(height: 4),
                   Text(
                     "R\$ ${valor.toStringAsFixed(2)}",
-                    style: const TextStyle(color: Colors.greenAccent, fontSize: 28, fontWeight: FontWeight.bold),
+                    style: const TextStyle(
+                      color: AppColors.accent,
+                      fontSize: 28,
+                      fontWeight: FontWeight.bold,
+                    ),
                   ),
                   const Divider(color: Colors.white10, height: 24),
                   Row(
                     children: [
-                      const Icon(Icons.calendar_today_outlined, size: 16, color: Colors.white54),
+                      const Icon(
+                        Icons.calendar_today_outlined,
+                        size: 16,
+                        color: Colors.white54,
+                      ),
                       const SizedBox(width: 8),
-                      Text("Período: $inicioFormatado até $fimFormatado", style: const TextStyle(color: Colors.white70)),
+                      Text(
+                        "Período: $inicioFormatado até $fimFormatado",
+                        style: const TextStyle(color: Colors.white70),
+                      ),
                     ],
                   ),
                 ],
@@ -456,26 +630,48 @@ class _TelaDetalhesDesafioState extends State<TelaDetalhesDesafio> {
             ),
             const SizedBox(height: 24),
 
-            const Text("REGRAS E DESCRIÇÃO", style: TextStyle(color: Colors.white54, fontSize: 13, fontWeight: FontWeight.bold)),
+            const Text(
+              "REGRAS E DESCRIÇÃO",
+              style: TextStyle(
+                color: Colors.white54,
+                fontSize: 13,
+                fontWeight: FontWeight.bold,
+              ),
+            ),
             const SizedBox(height: 8),
             Text(
               descricao,
-              style: const TextStyle(color: Colors.white, fontSize: 15, height: 1.4),
+              style: const TextStyle(
+                color: Colors.white,
+                fontSize: 15,
+                height: 1.4,
+              ),
             ),
             const SizedBox(height: 32),
-            
+
             if (statusPagamento == 'pendente') ...[
               SizedBox(
                 width: double.infinity,
                 height: 50,
                 child: ElevatedButton.icon(
-                  icon: const Icon(Icons.payment_outlined, color: Colors.black),
+                  icon: const Icon(
+                    Icons.payment_outlined,
+                    color: AppColors.onPrimary,
+                  ),
                   style: ElevatedButton.styleFrom(
-                    backgroundColor: Colors.orangeAccent,
-                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                    backgroundColor: AppColors.warning,
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(12),
+                    ),
                   ),
                   onPressed: _abrirModalPagamento,
-                  label: const Text("EFETUAR PAGAMENTO", style: TextStyle(color: Colors.black, fontWeight: FontWeight.bold)),
+                  label: const Text(
+                    "EFETUAR PAGAMENTO",
+                    style: TextStyle(
+                      color: AppColors.onPrimary,
+                      fontWeight: FontWeight.bold,
+                    ),
+                  ),
                 ),
               ),
               const SizedBox(height: 16),
@@ -488,27 +684,44 @@ class _TelaDetalhesDesafioState extends State<TelaDetalhesDesafio> {
                 child: ElevatedButton.icon(
                   icon: const Icon(Icons.videocam, color: Colors.white),
                   style: ElevatedButton.styleFrom(
-                    backgroundColor: Colors.redAccent,
-                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                    backgroundColor: AppColors.error,
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(12),
+                    ),
                   ),
                   onPressed: () {
                     Navigator.push(
                       context,
                       MaterialPageRoute(
                         builder: (context) => TelaInstrucoesVideo(
-                          inscricaoId: widget.inscricaoData['id']?.toString() ?? '',
+                          inscricaoId:
+                              widget.inscricaoData['id']?.toString() ?? '',
                         ),
                       ),
                     );
                   },
-                  label: const Text("ENVIAR VÍDEO DE PESAGEM", style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
+                  label: const Text(
+                    "ENVIAR VÍDEO DE PESAGEM",
+                    style: TextStyle(
+                      color: Colors.white,
+                      fontWeight: FontWeight.bold,
+                    ),
+                  ),
                 ),
               ),
 
             if (statusVideo == 'em_analise')
-              _buildCardAviso("Vídeo em Análise ⏳", "Nossa equipe está avaliando seus vídeos de pesagem. Fique atento!", Colors.blueAccent),
+              _buildCardAviso(
+                "Vídeo em Análise ⏳",
+                "Nossa equipe está avaliando seus vídeos de pesagem. Fique atento!",
+                AppColors.info,
+              ),
             if (statusVideo == 'aprovado')
-              _buildCardAviso("Pesagem Homologada! ✅", "Seus vídeos foram aprovados com sucesso. Bom desafio!", Colors.green),
+              _buildCardAviso(
+                "Pesagem Homologada! ✅",
+                "Seus vídeos foram aprovados com sucesso. Bom desafio!",
+                AppColors.success,
+              ),
           ],
         ),
       ),
@@ -527,9 +740,19 @@ class _TelaDetalhesDesafioState extends State<TelaDetalhesDesafio> {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Text(titulo, style: TextStyle(color: col, fontWeight: FontWeight.bold, fontSize: 16)),
+          Text(
+            titulo,
+            style: TextStyle(
+              color: col,
+              fontWeight: FontWeight.bold,
+              fontSize: 16,
+            ),
+          ),
           const SizedBox(height: 4),
-          Text(sub, style: const TextStyle(color: Colors.white70, fontSize: 13)),
+          Text(
+            sub,
+            style: const TextStyle(color: Colors.white70, fontSize: 13),
+          ),
         ],
       ),
     );
@@ -569,7 +792,7 @@ class _TelaInstrucoesVideoState extends State<TelaInstrucoesVideo> {
   Future<void> _capturarVideoAoVivo(int tipoVideo, Duration limiteTempo) async {
     try {
       final XFile? video = await _picker.pickVideo(
-        source: ImageSource.camera, 
+        source: ImageSource.camera,
         maxDuration: limiteTempo,
       );
 
@@ -585,7 +808,10 @@ class _TelaInstrucoesVideoState extends State<TelaInstrucoesVideo> {
     } catch (e) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text("❌ Erro ao abrir a câmera: $e"), backgroundColor: Colors.redAccent),
+          SnackBar(
+            content: Text("❌ Erro ao abrir a câmera: $e"),
+            backgroundColor: AppColors.error,
+          ),
         );
       }
     }
@@ -600,54 +826,63 @@ class _TelaInstrucoesVideoState extends State<TelaInstrucoesVideo> {
       if (uid == null) throw "Usuário não autenticado";
 
       final agora = DateTime.now();
-      final dataFormatada = "${agora.year}-${agora.month.toString().padLeft(2, '0')}-${agora.day.toString().padLeft(2, '0')}";
-      
+      final dataFormatada =
+          "${agora.year}-${agora.month.toString().padLeft(2, '0')}-${agora.day.toString().padLeft(2, '0')}";
+
       final caminhoBase = "checagem_peso/videos/$dataFormatada";
-      final nomeVideoRosto = "$caminhoBase/${widget.inscricaoId}_rosto_${agora.millisecondsSinceEpoch}.mp4";
-      final nomeVideoPeso = "$caminhoBase/${widget.inscricaoId}_peso_${agora.millisecondsSinceEpoch}.mp4";
+      final nomeVideoRosto =
+          "$caminhoBase/${widget.inscricaoId}_rosto_${agora.millisecondsSinceEpoch}.mp4";
+      final nomeVideoPeso =
+          "$caminhoBase/${widget.inscricaoId}_peso_${agora.millisecondsSinceEpoch}.mp4";
 
       final bytesRosto = Uint8List.fromList(await _videoRosto!.readAsBytes());
       final bytesPeso = Uint8List.fromList(await _videoPeso!.readAsBytes());
 
       final bucket = supabase.storage.from('avatars');
-      
+
       await bucket.uploadBinary(
-        nomeVideoRosto, 
-        bytesRosto, 
-        fileOptions: const FileOptions(contentType: 'video/mp4')
+        nomeVideoRosto,
+        bytesRosto,
+        fileOptions: const FileOptions(contentType: 'video/mp4'),
       );
 
       await bucket.uploadBinary(
-        nomeVideoPeso, 
-        bytesPeso, 
-        fileOptions: const FileOptions(contentType: 'video/mp4')
+        nomeVideoPeso,
+        bytesPeso,
+        fileOptions: const FileOptions(contentType: 'video/mp4'),
       );
 
       final urlRosto = bucket.getPublicUrl(nomeVideoRosto);
       final urlPeso = bucket.getPublicUrl(nomeVideoPeso);
-      
+
       final dadosAtualizacao = {
         'status_video': 'em_analise',
-        'video_rosto_url': urlRosto, 
+        'video_rosto_url': urlRosto,
         'video_peso_url': urlPeso,
         'codigo_verificacao': _palavraAleatoria,
       };
 
       await supabase
-          .from('participantes_apostas')
+          .from('participantes_desafios')
           .update(dadosAtualizacao)
           .eq('id', widget.inscricaoId);
 
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text("🚀 Vídeos enviados com sucesso para análise!"), backgroundColor: Colors.green),
+          const SnackBar(
+            content: Text("🚀 Vídeos enviados com sucesso para análise!"),
+            backgroundColor: AppColors.success,
+          ),
         );
         Navigator.pop(context);
       }
     } catch (e) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text("❌ Erro no envio dos vídeos: $e"), backgroundColor: Colors.redAccent),
+          SnackBar(
+            content: Text("❌ Erro no envio dos vídeos: $e"),
+            backgroundColor: AppColors.error,
+          ),
         );
       }
     } finally {
@@ -669,9 +904,13 @@ class _TelaInstrucoesVideoState extends State<TelaInstrucoesVideo> {
       margin: const EdgeInsets.symmetric(vertical: 10),
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
-        color: const Color(0xFF1A1A1A),
+        color: AppColors.card,
         borderRadius: BorderRadius.circular(14),
-        border: Border.all(color: jaPossui ? Colors.greenAccent.withValues(alpha: 0.3) : Colors.white10),
+        border: Border.all(
+          color: jaPossui
+              ? AppColors.success.withValues(alpha: 0.3)
+              : Colors.white10,
+        ),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -679,38 +918,74 @@ class _TelaInstrucoesVideoState extends State<TelaInstrucoesVideo> {
           Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
-              Text(titulo, style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 16)),
+              Text(
+                titulo,
+                style: const TextStyle(
+                  color: Colors.white,
+                  fontWeight: FontWeight.bold,
+                  fontSize: 16,
+                ),
+              ),
               if (jaPossui)
                 const Row(
                   children: [
-                    Icon(Icons.check_circle, color: Colors.greenAccent, size: 18),
+                    Icon(
+                      Icons.check_circle,
+                      color: AppColors.success,
+                      size: 18,
+                    ),
                     SizedBox(width: 4),
-                    Text("PRONTO", style: TextStyle(color: Colors.greenAccent, fontSize: 12, fontWeight: FontWeight.bold)),
+                    Text(
+                      "PRONTO",
+                      style: TextStyle(
+                        color: AppColors.success,
+                        fontSize: 12,
+                        fontWeight: FontWeight.bold,
+                      ),
+                    ),
                   ],
                 ),
             ],
           ),
           const SizedBox(height: 6),
-          Text(instrucao, style: const TextStyle(color: Colors.white70, fontSize: 14, height: 1.3)),
+          Text(
+            instrucao,
+            style: const TextStyle(
+              color: Colors.white70,
+              fontSize: 14,
+              height: 1.3,
+            ),
+          ),
           const SizedBox(height: 16),
-          
+
           SizedBox(
             width: double.infinity,
             height: 44,
             child: ElevatedButton.icon(
-              icon: const Icon(Icons.videocam, size: 18, color: Colors.black),
+              icon: const Icon(
+                Icons.videocam,
+                size: 18,
+                color: AppColors.onPrimary,
+              ),
               label: Text(
-                jaPossui ? "REGRAVAR VÍDEO (MÁX ${tempoLimite.inSeconds}S)" : "GRAVAR VÍDEO AGORA", 
-                style: const TextStyle(fontSize: 13, fontWeight: FontWeight.bold)
+                jaPossui
+                    ? "REGRAVAR VÍDEO (MÁX ${tempoLimite.inSeconds}S)"
+                    : "GRAVAR VÍDEO AGORA",
+                style: const TextStyle(
+                  fontSize: 13,
+                  fontWeight: FontWeight.bold,
+                ),
               ),
               style: ElevatedButton.styleFrom(
-                backgroundColor: jaPossui ? Colors.white54 : Colors.white, 
-                foregroundColor: Colors.black,
-                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10))
+                backgroundColor: jaPossui ? Colors.white54 : Colors.white,
+                foregroundColor: AppColors.onPrimary,
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(10),
+                ),
               ),
               onPressed: () => _capturarVideoAoVivo(tipoVideo, tempoLimite),
             ),
-          )
+          ),
         ],
       ),
     );
@@ -719,15 +994,20 @@ class _TelaInstrucoesVideoState extends State<TelaInstrucoesVideo> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: const Color(0xFF121212),
+      backgroundColor: AppColors.background,
       appBar: AppBar(
-        title: const Text("Envio de Pesagem", style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
-        backgroundColor: const Color(0xFF1A1A1A),
+        title: const Text(
+          "Envio de Pesagem",
+          style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold),
+        ),
+        backgroundColor: AppColors.card,
         iconTheme: const IconThemeData(color: Colors.white),
         elevation: 0,
       ),
       body: _enviando
-          ? const Center(child: CircularProgressIndicator(color: Colors.redAccent))
+          ? const Center(
+              child: CircularProgressIndicator(color: AppColors.error),
+            )
           : SingleChildScrollView(
               padding: const EdgeInsets.all(20.0),
               child: Column(
@@ -737,18 +1017,28 @@ class _TelaInstrucoesVideoState extends State<TelaInstrucoesVideo> {
                     width: double.infinity,
                     padding: const EdgeInsets.all(12),
                     decoration: BoxDecoration(
-                      color: Colors.orangeAccent.withValues(alpha: 0.1),
+                      color: AppColors.warning.withValues(alpha: 0.1),
                       borderRadius: BorderRadius.circular(10),
-                      border: Border.all(color: Colors.orangeAccent.withValues(alpha: 0.4)),
+                      border: Border.all(
+                        color: AppColors.warning.withValues(alpha: 0.4),
+                      ),
                     ),
                     child: const Row(
                       children: [
-                        Icon(Icons.hd_outlined, color: Colors.orangeAccent, size: 22),
+                        Icon(
+                          Icons.hd_outlined,
+                          color: AppColors.warning,
+                          size: 22,
+                        ),
                         SizedBox(width: 12),
                         Expanded(
                           child: Text(
                             "ATENÇÃO: Altere as configurações de gravação da câmera do seu celular para 480p (qualidade baixa) antes de iniciar.",
-                            style: TextStyle(color: Colors.orangeAccent, fontSize: 13, fontWeight: FontWeight.w500),
+                            style: TextStyle(
+                              color: AppColors.warning,
+                              fontSize: 13,
+                              fontWeight: FontWeight.w500,
+                            ),
                           ),
                         ),
                       ],
@@ -760,15 +1050,33 @@ class _TelaInstrucoesVideoState extends State<TelaInstrucoesVideo> {
                     width: double.infinity,
                     padding: const EdgeInsets.all(14),
                     decoration: BoxDecoration(
-                      color: Colors.redAccent.withValues(alpha: 0.08),
+                      color: AppColors.error.withValues(alpha: 0.08),
                       borderRadius: BorderRadius.circular(12),
-                      border: Border.all(color: Colors.redAccent.withValues(alpha: 0.25)),
+                      border: Border.all(
+                        color: AppColors.error.withValues(alpha: 0.25),
+                      ),
                     ),
                     child: Column(
                       children: [
-                        const Text("CÓDIGO OBRIGATÓRIO DO PAPEL", style: TextStyle(color: Colors.white60, fontSize: 11, fontWeight: FontWeight.bold, letterSpacing: 0.5)),
+                        const Text(
+                          "CÓDIGO OBRIGATÓRIO DO PAPEL",
+                          style: TextStyle(
+                            color: Colors.white60,
+                            fontSize: 11,
+                            fontWeight: FontWeight.bold,
+                            letterSpacing: 0.5,
+                          ),
+                        ),
                         const SizedBox(height: 4),
-                        Text(_palavraAleatoria, style: const TextStyle(color: Colors.redAccent, fontSize: 24, fontWeight: FontWeight.bold, letterSpacing: 1.5)),
+                        Text(
+                          _palavraAleatoria,
+                          style: const TextStyle(
+                            color: AppColors.error,
+                            fontSize: 24,
+                            fontWeight: FontWeight.bold,
+                            letterSpacing: 1.5,
+                          ),
+                        ),
                       ],
                     ),
                   ),
@@ -776,7 +1084,8 @@ class _TelaInstrucoesVideoState extends State<TelaInstrucoesVideo> {
 
                   _buildBlocoUpload(
                     titulo: "VÍDEO 1: Rosto + Papel",
-                    instrucao: "Grave um vídeo segurando o papel com a palavra escrita mostrando seu rosto de no máximo 3 segundos.",
+                    instrucao:
+                        "Grave um vídeo segurando o papel com a palavra escrita mostrando seu rosto de no máximo 3 segundos.",
                     tipoVideo: 1,
                     tempoLimite: const Duration(seconds: 3),
                     videoArquivo: _videoRosto,
@@ -784,7 +1093,8 @@ class _TelaInstrucoesVideoState extends State<TelaInstrucoesVideo> {
 
                   _buildBlocoUpload(
                     titulo: "VÍDEO 2: Peso + Papel",
-                    instrucao: "Grave outro vídeo mostrando o seu peso e mostrando sua mão segurando o papel de no máximo 5 segundos.",
+                    instrucao:
+                        "Grave outro vídeo mostrando o seu peso e mostrando sua mão segurando o papel de no máximo 5 segundos.",
                     tipoVideo: 2,
                     tempoLimite: const Duration(seconds: 5),
                     videoArquivo: _videoPeso,
@@ -796,18 +1106,25 @@ class _TelaInstrucoesVideoState extends State<TelaInstrucoesVideo> {
                     width: double.infinity,
                     height: 52,
                     child: ElevatedButton(
-                      onPressed: (_videoRosto != null && _videoPeso != null && !_enviando) 
-                          ? _finalizarEnvio 
+                      onPressed:
+                          (_videoRosto != null &&
+                              _videoPeso != null &&
+                              !_enviando)
+                          ? _finalizarEnvio
                           : null,
                       style: ElevatedButton.styleFrom(
-                        backgroundColor: Colors.greenAccent.shade400,
+                        backgroundColor: AppColors.primary,
                         disabledBackgroundColor: Colors.white10,
-                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(12),
+                        ),
                       ),
                       child: Text(
                         "CONCLUIR E ENVIAR GRAVAÇÕES",
                         style: TextStyle(
-                          color: (_videoRosto != null && _videoPeso != null) ? Colors.black : Colors.white30,
+                          color: (_videoRosto != null && _videoPeso != null)
+                              ? AppColors.onPrimary
+                              : Colors.white30,
                           fontWeight: FontWeight.bold,
                           letterSpacing: 0.5,
                         ),

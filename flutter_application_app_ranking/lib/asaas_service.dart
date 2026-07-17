@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'core/supabase_client.dart';
+import 'core/app_theme.dart';
 
 /// Service para integração com Asaas via Supabase Edge Function
 class AsaasService {
@@ -149,7 +150,7 @@ class AsaasService {
     ScaffoldMessenger.of(context).showSnackBar(
       const SnackBar(
         content: Text("📋 Código PIX copiado!"),
-        backgroundColor: Colors.green,
+        backgroundColor: AppColors.success,
       ),
     );
   }

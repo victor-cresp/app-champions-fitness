@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import '../core/supabase_client.dart';
 import '../services/ranking_service.dart';
+import '../core/app_theme.dart';
 
 class TelaPrincipal extends StatefulWidget {
   const TelaPrincipal({super.key});
@@ -56,8 +57,12 @@ class _TelaPrincipalState extends State<TelaPrincipal> {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: Text(sucesso ? "Treino concluído! +10 PTS" : "Erro ao computar pontos."),
-            backgroundColor: sucesso ? Colors.green : Colors.redAccent,
+            content: Text(
+              sucesso
+                  ? "Treino concluído! +10 PTS"
+                  : "Erro ao computar pontos.",
+            ),
+            backgroundColor: sucesso ? AppColors.success : AppColors.error,
           ),
         );
       }
@@ -79,28 +84,42 @@ class _TelaPrincipalState extends State<TelaPrincipal> {
             width: double.infinity,
             padding: const EdgeInsets.all(20),
             decoration: BoxDecoration(
-              color: const Color(0xFF1A1A1A),
+              color: AppColors.card,
               borderRadius: BorderRadius.circular(16),
               border: Border.all(color: Colors.white10),
             ),
             child: Column(
               children: [
                 Text(
-                  _treinando ? "Treino em andamento..." : "Pronto para pontuar?",
-                  style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: Colors.white),
+                  _treinando
+                      ? "Treino em andamento..."
+                      : "Pronto para pontuar?",
+                  style: const TextStyle(
+                    fontSize: 18,
+                    fontWeight: FontWeight.bold,
+                    color: Colors.white,
+                  ),
                 ),
                 const SizedBox(height: 12),
                 SizedBox(
-                  width: double.infinity, height: 50,
+                  width: double.infinity,
+                  height: 50,
                   child: ElevatedButton(
                     onPressed: _alternarTreino,
                     style: ElevatedButton.styleFrom(
-                      backgroundColor: _treinando ? Colors.redAccent : Colors.greenAccent.shade400,
-                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                      backgroundColor: _treinando
+                          ? AppColors.error
+                          : AppColors.primary,
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(12),
+                      ),
                     ),
                     child: Text(
                       _treinando ? "PARAR E SALVAR TREINO" : "INICIAR TREINO",
-                      style: const TextStyle(color: Colors.black, fontWeight: FontWeight.bold),
+                      style: const TextStyle(
+                        color: AppColors.onPrimary,
+                        fontWeight: FontWeight.bold,
+                      ),
                     ),
                   ),
                 ),
@@ -108,50 +127,86 @@ class _TelaPrincipalState extends State<TelaPrincipal> {
             ),
           ),
           const SizedBox(height: 24),
-          
+
           // Título da Liga
           Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
               Text(
-                "Liga ${bairroFoco.toUpperCase()}", 
-                style: const TextStyle(fontSize: 20, fontWeight: FontWeight.bold, color: Colors.white)
+                "Liga ${bairroFoco.toUpperCase()}",
+                style: const TextStyle(
+                  fontSize: 20,
+                  fontWeight: FontWeight.bold,
+                  color: Colors.white,
+                ),
               ),
               IconButton(
-                icon: const Icon(Icons.refresh, color: Colors.greenAccent),
+                icon: const Icon(Icons.refresh, color: AppColors.primary),
                 onPressed: _carregarDados,
               ),
             ],
           ),
           const Divider(color: Colors.white10),
-          
+
           // Lista do Ranking
           Expanded(
             child: _carregandoRanking
-                ? const Center(child: CircularProgressIndicator(color: Colors.greenAccent))
+                ? const Center(
+                    child: CircularProgressIndicator(color: AppColors.primary),
+                  )
                 : _rankingDados.isEmpty
-                    ? const Center(child: Text("Nenhum atleta pontuou neste bairro ainda.", style: TextStyle(color: Colors.white54)))
-                    : ListView.builder(
-                        itemCount: _rankingDados.length,
-                        padding: const EdgeInsets.only(bottom: 20),
-                        itemBuilder: (context, index) {
-                          final atleta = _rankingDados[index];
-                          return Card(
-                            color: const Color(0xFF1A1A1A),
-                            margin: const EdgeInsets.symmetric(vertical: 6),
-                            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-                            child: ListTile(
-                              leading: CircleAvatar(
-                                backgroundColor: index == 0 ? Colors.orangeAccent : Colors.grey[800],
-                                child: Text("${index + 1}º", style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
+                ? const Center(
+                    child: Text(
+                      "Nenhum atleta pontuou neste bairro ainda.",
+                      style: TextStyle(color: Colors.white54),
+                    ),
+                  )
+                : ListView.builder(
+                    itemCount: _rankingDados.length,
+                    padding: const EdgeInsets.only(bottom: 20),
+                    itemBuilder: (context, index) {
+                      final atleta = _rankingDados[index];
+                      return Card(
+                        color: AppColors.card,
+                        margin: const EdgeInsets.symmetric(vertical: 6),
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(12),
+                        ),
+                        child: ListTile(
+                          leading: CircleAvatar(
+                            backgroundColor: index == 0
+                                ? AppColors.warning
+                                : Colors.grey[800],
+                            child: Text(
+                              "${index + 1}º",
+                              style: const TextStyle(
+                                color: Colors.white,
+                                fontWeight: FontWeight.bold,
                               ),
-                              title: Text(atleta['usuario_nome'] ?? 'Atleta', style: const TextStyle(fontWeight: FontWeight.bold, color: Colors.white)),
-                              subtitle: Text("${atleta['total_treinos']} treinos confirmados", style: const TextStyle(color: Colors.white60)),
-                              trailing: Text("${atleta['total_pontos']} PTS", style: const TextStyle(color: Colors.greenAccent, fontWeight: FontWeight.bold)),
                             ),
-                          );
-                        },
-                      ),
+                          ),
+                          title: Text(
+                            atleta['usuario_nome'] ?? 'Atleta',
+                            style: const TextStyle(
+                              fontWeight: FontWeight.bold,
+                              color: Colors.white,
+                            ),
+                          ),
+                          subtitle: Text(
+                            "${atleta['total_treinos']} treinos confirmados",
+                            style: const TextStyle(color: Colors.white60),
+                          ),
+                          trailing: Text(
+                            "${atleta['total_pontos']} PTS",
+                            style: const TextStyle(
+                              color: AppColors.secondary,
+                              fontWeight: FontWeight.bold,
+                            ),
+                          ),
+                        ),
+                      );
+                    },
+                  ),
           ),
         ],
       ),

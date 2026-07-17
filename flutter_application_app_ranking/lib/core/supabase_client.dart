@@ -5,7 +5,9 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 Future<void> initSupabase() async {
   await Supabase.initialize(
     url: dotenv.env['SUPABASE_URL'] ?? '',
-    publishableKey: dotenv.env['SUPABASE_ANON_KEY'] ?? '', // <-- MUDOU AQUI (Troque anonKey por publishableKey)
+    publishableKey:
+        dotenv.env['SUPABASE_ANON_KEY'] ??
+        '', // <-- MUDOU AQUI (Troque anonKey por publishableKey)
     authOptions: const FlutterAuthClientOptions(
       authFlowType: AuthFlowType.implicit,
     ),

@@ -30,71 +30,78 @@ class _TelaRegistroState extends State<TelaRegistro> {
   String? _emailErro;
   String? _cpfErro;
 
-Future<void> _registrar() async {
-  if (!_formKey.currentState!.validate()) return;
-  if (!_aceitouTermos) {
-    _mostrarMensagem("Você precisa aceitar os Termos de Uso para criar sua conta.", Colors.orangeAccent);
-    return;
-  }
-  if (_senhaController.text != _confirmarSenhaController.text) {
-    _mostrarMensagem("As senhas devem ser idênticas", Colors.redAccent);
-    setState(() => _carregando = false);
-    return;
-  }
-  setState(() => _carregando = true);
-
-  try {
-    // 1) Verifica se já existe CPF cadastrado na tabela usuarios
-    final cpfLimpo = _cpfController.text.trim().replaceAll(RegExp(r'\D'), '');
-    final cpfExistente = await supabase
-        .from('usuarios')
-        .select('id')
-        .eq('cpf', cpfLimpo)
-        .maybeSingle();
-
-    if (cpfExistente != null) {
-      setState(() {
-        _cpfErro = "Este CPF já está cadastrado em nossa plataforma.";
-        _carregando = false;
-      });
-      return;
-    }
-
-    // 2) Verifica se já existe email cadastrado na tabela usuarios
-    final emailLimpo = _emailController.text.trim().toLowerCase();
-    final emailExistente = await supabase
-        .from('usuarios')
-        .select('id')
-        .eq('email', emailLimpo)
-        .maybeSingle();
-
-    if (emailExistente != null) {
-      setState(() {
-        _emailErro = "Este e-mail já está cadastrado em nossa plataforma.";
-        _carregando = false;
-      });
-      return;
-    }
-
-    // 3) Cria o usuário no Supabase Auth (Com as chaves corrigidas para a Trigger ler)
-    await supabase.auth.signUp(
-      email: emailLimpo,
-      password: _senhaController.text.trim(),
-      data: {
-        'nome': _nomeController.text.trim(),       // Ajustado igual à tabela
-        'telefone': _telefoneController.text.trim(),   // Ajustado igual à tabela
-        'cpf': cpfLimpo,
-      },
-    );
-
-    // O PASSO 4 FOI REMOVIDO DAQUI PORQUE A TRIGGER DO BANCO JÁ FAZ ISSO AUTOMATICAMENTE
-
-    if (mounted) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text("Conta criada com sucesso!"), backgroundColor: Colors.green),
+  Future<void> _registrar() async {
+    if (!_formKey.currentState!.validate()) return;
+    if (!_aceitouTermos) {
+      _mostrarMensagem(
+        "Você precisa aceitar os Termos de Uso para criar sua conta.",
+        AppColors.warning,
       );
-      Navigator.pop(context);
+      return;
     }
+    if (_senhaController.text != _confirmarSenhaController.text) {
+      _mostrarMensagem("As senhas devem ser idênticas", AppColors.error);
+      setState(() => _carregando = false);
+      return;
+    }
+    setState(() => _carregando = true);
+
+    try {
+      // 1) Verifica se já existe CPF cadastrado na tabela usuarios
+      final cpfLimpo = _cpfController.text.trim().replaceAll(RegExp(r'\D'), '');
+      final cpfExistente = await supabase
+          .from('usuarios')
+          .select('id')
+          .eq('cpf', cpfLimpo)
+          .maybeSingle();
+
+      if (cpfExistente != null) {
+        setState(() {
+          _cpfErro = "Este CPF já está cadastrado em nossa plataforma.";
+          _carregando = false;
+        });
+        return;
+      }
+
+      // 2) Verifica se já existe email cadastrado na tabela usuarios
+      final emailLimpo = _emailController.text.trim().toLowerCase();
+      final emailExistente = await supabase
+          .from('usuarios')
+          .select('id')
+          .eq('email', emailLimpo)
+          .maybeSingle();
+
+      if (emailExistente != null) {
+        setState(() {
+          _emailErro = "Este e-mail já está cadastrado em nossa plataforma.";
+          _carregando = false;
+        });
+        return;
+      }
+
+      // 3) Cria o usuário no Supabase Auth (Com as chaves corrigidas para a Trigger ler)
+      await supabase.auth.signUp(
+        email: emailLimpo,
+        password: _senhaController.text.trim(),
+        data: {
+          'nome': _nomeController.text.trim(), // Ajustado igual à tabela
+          'telefone': _telefoneController.text
+              .trim(), // Ajustado igual à tabela
+          'cpf': cpfLimpo,
+        },
+      );
+
+      // O PASSO 4 FOI REMOVIDO DAQUI PORQUE A TRIGGER DO BANCO JÁ FAZ ISSO AUTOMATICAMENTE
+
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text("Conta criada com sucesso!"),
+            backgroundColor: AppColors.success,
+          ),
+        );
+        Navigator.pop(context);
+      }
     } on AuthException catch (e) {
       setState(() => _carregando = false);
       debugPrint("❌ ERRO ORIGINAL DO SUPABASE: ${e.message}");
@@ -106,27 +113,27 @@ Future<void> _registrar() async {
           _emailErro = "Este e-mail já está cadastrado em nossa plataforma.";
         });
       } else if (e.message.toLowerCase().contains('database error') ||
-             e.message.toLowerCase().contains('saving new user')) {
-      _mostrarMensagem(
-        "Erro ao criar conta. ${e.message}. Verifique as colunas do banco ou execute o script de correção.",
-        Colors.orangeAccent,
+          e.message.toLowerCase().contains('saving new user')) {
+        _mostrarMensagem(
+          "Erro ao criar conta. ${e.message}. Verifique as colunas do banco ou execute o script de correção.",
+          AppColors.warning,
         );
       } else {
-        _mostrarMensagem(e.message, Colors.redAccent);
+        _mostrarMensagem(e.message, AppColors.error);
       }
-      } catch (e) {
+    } catch (e) {
       setState(() => _carregando = false);
       if (mounted) {
-        _mostrarMensagem("Erro inesperado: $e", Colors.redAccent);
+        _mostrarMensagem("Erro inesperado: $e", AppColors.error);
       }
     }
   }
 
   void _mostrarMensagem(String msg, Color cor) {
     if (!mounted) return;
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(content: Text(msg), backgroundColor: cor),
-    );
+    ScaffoldMessenger.of(
+      context,
+    ).showSnackBar(SnackBar(content: Text(msg), backgroundColor: cor));
   }
 
   Future<void> _abrirTermosDeUso() async {
@@ -136,8 +143,10 @@ Future<void> _registrar() async {
       showDialog(
         context: context,
         builder: (context) => Dialog(
-          backgroundColor: const Color(0xFF1E1E1E),
-          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+          backgroundColor: AppColors.surface,
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(16),
+          ),
           child: Padding(
             padding: const EdgeInsets.all(20),
             child: Column(
@@ -145,12 +154,20 @@ Future<void> _registrar() async {
               children: [
                 Row(
                   children: [
-                    const Icon(Icons.description, color: Colors.greenAccent, size: 22),
+                    const Icon(
+                      Icons.description,
+                      color: AppColors.primary,
+                      size: 22,
+                    ),
                     const SizedBox(width: 8),
                     const Expanded(
                       child: Text(
                         "Termos de Uso",
-                        style: TextStyle(color: Colors.white, fontSize: 18, fontWeight: FontWeight.bold),
+                        style: TextStyle(
+                          color: Colors.white,
+                          fontSize: 18,
+                          fontWeight: FontWeight.bold,
+                        ),
                       ),
                     ),
                     IconButton(
@@ -164,7 +181,11 @@ Future<void> _registrar() async {
                   child: SingleChildScrollView(
                     child: Text(
                       termos,
-                      style: const TextStyle(color: Colors.white70, fontSize: 13, height: 1.5),
+                      style: const TextStyle(
+                        color: Colors.white70,
+                        fontSize: 13,
+                        height: 1.5,
+                      ),
                     ),
                   ),
                 ),
@@ -178,19 +199,27 @@ Future<void> _registrar() async {
                       Navigator.pop(context);
                     },
                     style: ElevatedButton.styleFrom(
-                      backgroundColor: Colors.greenAccent.shade400,
-                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                      backgroundColor: AppColors.primary,
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(10),
+                      ),
                     ),
                     child: const Text(
                       "ACEITAR E CONTINUAR",
-                      style: TextStyle(color: Colors.black, fontWeight: FontWeight.bold),
+                      style: TextStyle(
+                        color: AppColors.onPrimary,
+                        fontWeight: FontWeight.bold,
+                      ),
                     ),
                   ),
                 ),
                 const SizedBox(height: 8),
                 TextButton(
                   onPressed: () => Navigator.pop(context),
-                  child: const Text("Fechar", style: TextStyle(color: Colors.white38)),
+                  child: const Text(
+                    "Fechar",
+                    style: TextStyle(color: Colors.white38),
+                  ),
                 ),
               ],
             ),
@@ -198,7 +227,7 @@ Future<void> _registrar() async {
         ),
       );
     } catch (e) {
-      _mostrarMensagem("Erro ao carregar Termos de Uso: $e", Colors.redAccent);
+      _mostrarMensagem("Erro ao carregar Termos de Uso: $e", AppColors.error);
     }
   }
 
@@ -222,8 +251,9 @@ Future<void> _registrar() async {
         height: double.infinity,
         decoration: const BoxDecoration(
           gradient: LinearGradient(
-            begin: Alignment.topCenter, end: Alignment.bottomCenter,
-            colors: [Color(0xFF1A1A1A), Colors.black],
+            begin: Alignment.topCenter,
+            end: Alignment.bottomCenter,
+            colors: [AppColors.backgroundElevated, AppColors.background],
           ),
         ),
         child: SafeArea(
@@ -234,12 +264,26 @@ Future<void> _registrar() async {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  const Text("Crie sua conta", style: TextStyle(fontSize: 32, fontWeight: FontWeight.bold, color: Colors.white)),
+                  const Text(
+                    "Crie sua conta",
+                    style: TextStyle(
+                      fontSize: 32,
+                      fontWeight: FontWeight.bold,
+                      color: Colors.white,
+                    ),
+                  ),
                   const SizedBox(height: 8),
-                  const Text("Comece sua jornada no Champions App", style: TextStyle(color: Colors.white70)),
+                  const Text(
+                    "Comece sua jornada no Champions App",
+                    style: TextStyle(color: Colors.white70),
+                  ),
                   const SizedBox(height: 40),
 
-                  _campo(controller: _nomeController, label: "Nome Completo", icon: Icons.person_outline),
+                  _campo(
+                    controller: _nomeController,
+                    label: "Nome Completo",
+                    icon: Icons.person_outline,
+                  ),
                   const SizedBox(height: 16),
 
                   // Campo E-mail com validação de duplicidade
@@ -247,13 +291,17 @@ Future<void> _registrar() async {
                     controller: _emailController,
                     keyboardType: TextInputType.emailAddress,
                     style: const TextStyle(color: Colors.white),
-                    decoration: _decoracaoDoCampo("E-mail", Icons.email_outlined),
+                    decoration: _decoracaoDoCampo(
+                      "E-mail",
+                      Icons.email_outlined,
+                    ),
                     onChanged: (_) {
                       if (_emailErro != null) setState(() => _emailErro = null);
                     },
                     validator: (v) {
                       if (v == null || v.isEmpty) return "Campo obrigatório";
-                      if (!v.contains('@') || !v.contains('.')) return "Informe um e-mail válido";
+                      if (!v.contains('@') || !v.contains('.'))
+                        return "Informe um e-mail válido";
                       if (_emailErro != null) return _emailErro;
                       return null;
                     },
@@ -274,14 +322,19 @@ Future<void> _registrar() async {
                     controller: _cpfController,
                     keyboardType: TextInputType.number,
                     style: const TextStyle(color: Colors.white),
-                    decoration: _decoracaoDoCampo("CPF (Somente números)", Icons.badge_outlined, placeholder: "00000000000"),
+                    decoration: _decoracaoDoCampo(
+                      "CPF (Somente números)",
+                      Icons.badge_outlined,
+                      placeholder: "00000000000",
+                    ),
                     onChanged: (_) {
                       if (_cpfErro != null) setState(() => _cpfErro = null);
                     },
                     validator: (v) {
                       if (v == null || v.isEmpty) return "Campo obrigatório";
                       final digitos = v.replaceAll(RegExp(r'\D'), '');
-                      if (digitos.length != 11) return "CPF deve ter 11 dígitos";
+                      if (digitos.length != 11)
+                        return "CPF deve ter 11 dígitos";
                       if (_cpfErro != null) return _cpfErro;
                       return null;
                     },
@@ -298,15 +351,19 @@ Future<void> _registrar() async {
                       Icons.lock_outline,
                       sufixo: IconButton(
                         icon: Icon(
-                          _senhaVisivel ? Icons.visibility : Icons.visibility_off,
+                          _senhaVisivel
+                              ? Icons.visibility
+                              : Icons.visibility_off,
                           color: Colors.grey,
                         ),
-                        onPressed: () => setState(() => _senhaVisivel = !_senhaVisivel),
+                        onPressed: () =>
+                            setState(() => _senhaVisivel = !_senhaVisivel),
                       ),
                     ),
                     validator: (v) {
                       if (v == null || v.isEmpty) return "Campo obrigatório";
-                      if (v.length < 8) return "A senha deve ter pelo menos 8 caracteres";
+                      if (v.length < 8)
+                        return "A senha deve ter pelo menos 8 caracteres";
                       return null;
                     },
                   ),
@@ -322,15 +379,21 @@ Future<void> _registrar() async {
                       Icons.lock_clock_outlined,
                       sufixo: IconButton(
                         icon: Icon(
-                          _confirmarSenhaVisivel ? Icons.visibility : Icons.visibility_off,
+                          _confirmarSenhaVisivel
+                              ? Icons.visibility
+                              : Icons.visibility_off,
                           color: Colors.grey,
                         ),
-                        onPressed: () => setState(() => _confirmarSenhaVisivel = !_confirmarSenhaVisivel),
+                        onPressed: () => setState(
+                          () =>
+                              _confirmarSenhaVisivel = !_confirmarSenhaVisivel,
+                        ),
                       ),
                     ),
                     validator: (v) {
                       if (v == null || v.isEmpty) return "Campo obrigatório";
-                      if (v != _senhaController.text) return "As senhas devem ser idênticas";
+                      if (v != _senhaController.text)
+                        return "As senhas devem ser idênticas";
                       return null;
                     },
                   ),
@@ -352,31 +415,41 @@ Future<void> _registrar() async {
                           height: 24,
                           child: Checkbox(
                             value: _aceitouTermos,
-                            onChanged: (v) => setState(() => _aceitouTermos = v ?? false),
-                            activeColor: Colors.greenAccent.shade400,
-                            checkColor: Colors.black,
+                            onChanged: (v) =>
+                                setState(() => _aceitouTermos = v ?? false),
+                            activeColor: AppColors.primary,
+                            checkColor: AppColors.onPrimary,
                             side: const BorderSide(color: Colors.white38),
                           ),
                         ),
                         const SizedBox(width: 10),
                         Expanded(
                           child: GestureDetector(
-                            onTap: () => setState(() => _aceitouTermos = !_aceitouTermos),
+                            onTap: () => setState(
+                              () => _aceitouTermos = !_aceitouTermos,
+                            ),
                             child: RichText(
                               text: TextSpan(
-                                style: const TextStyle(color: Colors.white60, fontSize: 13, height: 1.3),
+                                style: const TextStyle(
+                                  color: Colors.white60,
+                                  fontSize: 13,
+                                  height: 1.3,
+                                ),
                                 children: [
                                   const TextSpan(text: "Li e aceito os "),
                                   TextSpan(
                                     text: "Termos de Uso",
                                     style: TextStyle(
-                                      color: Colors.greenAccent.shade400,
+                                      color: AppColors.primary,
                                       fontWeight: FontWeight.bold,
                                       decoration: TextDecoration.underline,
                                     ),
                                     recognizer: null,
                                   ),
-                                  const TextSpan(text: " e a Política de Privacidade da plataforma."),
+                                  const TextSpan(
+                                    text:
+                                        " e a Política de Privacidade da plataforma.",
+                                  ),
                                 ],
                               ),
                             ),
@@ -392,30 +465,49 @@ Future<void> _registrar() async {
                     alignment: Alignment.centerRight,
                     child: TextButton.icon(
                       onPressed: _abrirTermosDeUso,
-                      icon: Icon(Icons.description_outlined, size: 16, color: Colors.greenAccent.shade400),
+                      icon: Icon(
+                        Icons.description_outlined,
+                        size: 16,
+                        color: AppColors.primary,
+                      ),
                       label: Text(
                         "Ler Termos de Uso",
-                        style: TextStyle(color: Colors.greenAccent.shade400, fontSize: 12),
+                        style: TextStyle(
+                          color: AppColors.primary,
+                          fontSize: 12,
+                        ),
                       ),
                     ),
                   ),
                   const SizedBox(height: 8),
 
                   SizedBox(
-                    width: double.infinity, height: 54,
+                    width: double.infinity,
+                    height: 54,
                     child: ElevatedButton(
                       onPressed: _carregando ? null : _registrar,
                       style: ElevatedButton.styleFrom(
-                        backgroundColor: Colors.greenAccent.shade400,
-                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                        backgroundColor: AppColors.primary,
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(12),
+                        ),
                       ),
                       child: _carregando
-                        ? const SizedBox(
-                            width: 24,
-                            height: 24,
-                            child: CircularProgressIndicator(color: Colors.black, strokeWidth: 2),
-                          )
-                        : const Text("CRIAR CONTA", style: TextStyle(color: Colors.black, fontWeight: FontWeight.bold)),
+                          ? const SizedBox(
+                              width: 24,
+                              height: 24,
+                              child: CircularProgressIndicator(
+                                color: AppColors.onPrimary,
+                                strokeWidth: 2,
+                              ),
+                            )
+                          : const Text(
+                              "CRIAR CONTA",
+                              style: TextStyle(
+                                color: AppColors.onPrimary,
+                                fontWeight: FontWeight.bold,
+                              ),
+                            ),
                     ),
                   ),
                 ],
@@ -445,8 +537,17 @@ Future<void> _registrar() async {
   }
 
   // Centraliza o estilo visual
-  InputDecoration _decoracaoDoCampo(String label, IconData icon, {String? placeholder, Widget? sufixo}) {
-    return buildInputDecoration(label: label, icon: icon, hintText: placeholder, suffixIcon: sufixo)
-      .copyWith(fillColor: Colors.white.withValues(alpha: 0.05));
+  InputDecoration _decoracaoDoCampo(
+    String label,
+    IconData icon, {
+    String? placeholder,
+    Widget? sufixo,
+  }) {
+    return buildInputDecoration(
+      label: label,
+      icon: icon,
+      hintText: placeholder,
+      suffixIcon: sufixo,
+    ).copyWith(fillColor: Colors.white.withValues(alpha: 0.05));
   }
 }

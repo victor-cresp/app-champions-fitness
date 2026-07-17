@@ -37,10 +37,10 @@ class _ChampionsAppState extends State<ChampionsApp> {
   bool _verificandoStatus = true;
   late final StreamSubscription<AuthState> _inscricaoAuth;
 
-@override
+  @override
   void initState() {
     super.initState();
-    
+
     // 1. Faz uma checagem imediata se já existe uma sessão guardada no dispositivo
     final sessaoAtual = supabase.auth.currentSession;
     if (sessaoAtual != null) {
@@ -49,7 +49,7 @@ class _ChampionsAppState extends State<ChampionsApp> {
         _verificandoStatus = false;
       });
     }
-    
+
     // 2. Fica escutando as mudanças (como o retorno do Google Login)
     _inscricaoAuth = supabase.auth.onAuthStateChange.listen((data) {
       final Session? sessao = data.session;
@@ -78,7 +78,7 @@ class _ChampionsAppState extends State<ChampionsApp> {
 
   @override
   void dispose() {
-    _inscricaoAuth.cancel(); 
+    _inscricaoAuth.cancel();
     super.dispose();
   }
 
@@ -89,8 +89,14 @@ class _ChampionsAppState extends State<ChampionsApp> {
       theme: darkTheme,
       // Se estiver verificando o status, mostra um loading, se logado vai para a TelaAbas, senão TelaLogin
       home: _verificandoStatus
-          ? const Scaffold(body: Center(child: CircularProgressIndicator(color: Colors.greenAccent)))
-          : (_logado ? const TelaAbas() : const TelaLogin()), // <-- ALTERADO AQUI (De TelaPrincipal para TelaAbas)
+          ? const Scaffold(
+              body: Center(
+                child: CircularProgressIndicator(color: AppColors.primary),
+              ),
+            )
+          : (_logado
+                ? const TelaAbas()
+                : const TelaLogin()), // <-- ALTERADO AQUI (De TelaPrincipal para TelaAbas)
     );
   }
 }

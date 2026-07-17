@@ -1,7 +1,8 @@
 import 'package:flutter/material.dart';
 import '../core/supabase_client.dart';
 import '../core/date_utils.dart';
-import 'detalhe_desafios.dart'; 
+import '../core/app_theme.dart';
+import 'detalhe_desafios.dart';
 
 class TelaMinhasApostas extends StatefulWidget {
   final VoidCallback onIrParaNovaAposta;
@@ -14,7 +15,7 @@ class TelaMinhasApostas extends StatefulWidget {
 
 class _TelaMinhasApostasState extends State<TelaMinhasApostas> {
   List<dynamic> _minhasInscricoes = [];
-  Map<String, int> _atletasConfirmadosPorDesafio = {}; 
+  Map<String, int> _atletasConfirmadosPorDesafio = {};
   bool _carregando = true;
   String _filtroSelecionado = 'Todos';
 
@@ -33,8 +34,8 @@ class _TelaMinhasApostasState extends State<TelaMinhasApostas> {
     try {
       // Busca apenas inscrições com pagamento confirmado E vídeo aprovado
       final dadosInscricoes = await supabase
-          .from('participantes_apostas')
-          .select('*, apostas_disponiveis(*)') 
+          .from('participantes_desafios')
+          .select('*, desafios(*)')
           .eq('usuario_id', uid)
           .neq('status_pagamento', 'pendente')
           .eq('status_video', 'aprovado')
@@ -46,7 +47,8 @@ class _TelaMinhasApostasState extends State<TelaMinhasApostas> {
 
       final Map<String, int> contagemMap = {};
       for (var item in dadosContagem) {
-        contagemMap[item['aposta_id'].toString()] = int.tryParse(item['atletas_confirmados'].toString()) ?? 0;
+        contagemMap[item['aposta_id'].toString()] =
+            int.tryParse(item['atletas_confirmados'].toString()) ?? 0;
       }
 
       if (mounted) {
@@ -60,7 +62,10 @@ class _TelaMinhasApostasState extends State<TelaMinhasApostas> {
       if (mounted) {
         setState(() => _carregando = false);
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text("Erro ao carregar seus desafios: $e"), backgroundColor: Colors.redAccent),
+          SnackBar(
+            content: Text("Erro ao carregar seus desafios: $e"),
+            backgroundColor: AppColors.error,
+          ),
         );
       }
     }
@@ -68,9 +73,12 @@ class _TelaMinhasApostasState extends State<TelaMinhasApostas> {
 
   Color _obterCorEstagio(String estagio) {
     switch (estagio) {
-      case 'Em Andamento': return Colors.blueAccent;
-      case 'A iniciar': return Colors.greenAccent;
-      default: return Colors.white38; 
+      case 'Em Andamento':
+        return AppColors.info;
+      case 'A iniciar':
+        return AppColors.primary;
+      default:
+        return Colors.white38;
     }
   }
 
@@ -90,7 +98,11 @@ class _TelaMinhasApostasState extends State<TelaMinhasApostas> {
           const SizedBox(width: 6),
           Text(
             texto,
-            style: TextStyle(color: cor, fontSize: 12, fontWeight: FontWeight.bold),
+            style: TextStyle(
+              color: cor,
+              fontSize: 12,
+              fontWeight: FontWeight.bold,
+            ),
           ),
         ],
       ),
@@ -107,17 +119,19 @@ class _TelaMinhasApostasState extends State<TelaMinhasApostas> {
           setState(() => _filtroSelecionado = label);
         }
       },
-      selectedColor: Colors.greenAccent.shade400,
-      backgroundColor: const Color(0xFF1A1A1A),
+      selectedColor: AppColors.primary,
+      backgroundColor: AppColors.card,
       labelStyle: TextStyle(
-        color: selecionado ? Colors.black : Colors.white60,
+        color: selecionado ? AppColors.onPrimary : Colors.white60,
         fontWeight: FontWeight.bold,
         fontSize: 13,
       ),
-      checkmarkColor: Colors.black,
+      checkmarkColor: AppColors.onPrimary,
       shape: RoundedRectangleBorder(
         borderRadius: BorderRadius.circular(20),
-        side: BorderSide(color: selecionado ? Colors.greenAccent : Colors.white10),
+        side: BorderSide(
+          color: selecionado ? AppColors.primary : Colors.white10,
+        ),
       ),
     );
   }
@@ -125,7 +139,9 @@ class _TelaMinhasApostasState extends State<TelaMinhasApostas> {
   @override
   Widget build(BuildContext context) {
     if (_carregando) {
-      return const Center(child: CircularProgressIndicator(color: Colors.greenAccent));
+      return const Center(
+        child: CircularProgressIndicator(color: AppColors.primary),
+      );
     }
 
     if (_minhasInscricoes.isEmpty) {
@@ -135,45 +151,52 @@ class _TelaMinhasApostasState extends State<TelaMinhasApostas> {
     final agora = DateTime.now();
 
     final inscricoesValidas = _minhasInscricoes.where((inscricao) {
-      final desafio = inscricao['apostas_disponiveis'] ?? {};
+      final desafio = inscricao['desafios'] ?? {};
 
       if (desafio.isEmpty) {
-        return true; 
+        return true;
       }
 
       if (desafio['is_deleted'] == true) {
-        return false; 
+        return false;
       }
 
-      final dataLimite = DateTime.tryParse(desafio['data_limite_inscricao'] ?? '') ?? agora;
-      
-      final String statusPagamento = inscricao['status_pagamento'] ?? 'pendente';
+      final dataLimite =
+          DateTime.tryParse(desafio['data_limite_inscricao'] ?? '') ?? agora;
+
+      final String statusPagamento =
+          inscricao['status_pagamento'] ?? 'pendente';
       final String statusVideo = inscricao['status_video'] ?? 'nao_enviado';
 
-      final bool irregular = (statusPagamento == 'pendente' || statusVideo == 'nao_enviado' || statusVideo == 'reprovado');
+      final bool irregular =
+          (statusPagamento == 'pendente' ||
+          statusVideo == 'nao_enviado' ||
+          statusVideo == 'reprovado');
       final bool prazoEncerrado = agora.isAfter(dataLimite);
 
       if (irregular && prazoEncerrado) {
-        final dataInicio = DateTime.tryParse(desafio['data_inicio'] ?? '') ?? agora;
+        final dataInicio =
+            DateTime.tryParse(desafio['data_inicio'] ?? '') ?? agora;
         final diferencaDiasDoInicio = agora.difference(dataInicio).inDays;
 
         if (diferencaDiasDoInicio <= 5) {
           return true;
         }
 
-        return false; 
+        return false;
       }
       return true;
     }).toList();
 
     String obterEstagioDesafio(Map<String, dynamic> desafio) {
-      final dataInicio = DateTime.tryParse(desafio['data_inicio'] ?? '') ?? agora;
+      final dataInicio =
+          DateTime.tryParse(desafio['data_inicio'] ?? '') ?? agora;
       final dataFim = DateTime.tryParse(desafio['data_fim'] ?? '') ?? agora;
 
       if (agora.isAfter(dataInicio) && agora.isBefore(dataFim)) {
         return 'Em Andamento';
       } else if (agora.isBefore(dataInicio)) {
-        return 'A iniciar'; 
+        return 'A iniciar';
       } else {
         return 'Concluídos';
       }
@@ -181,14 +204,14 @@ class _TelaMinhasApostasState extends State<TelaMinhasApostas> {
 
     List<dynamic> inscricoesFiltradas = inscricoesValidas.where((inscricao) {
       if (_filtroSelecionado == 'Todos') return true;
-      final desafio = inscricao['apostas_disponiveis'] ?? {};
+      final desafio = inscricao['desafios'] ?? {};
       return obterEstagioDesafio(desafio) == _filtroSelecionado;
     }).toList();
 
     if (_filtroSelecionado == 'Todos') {
       inscricoesFiltradas.sort((a, b) {
-        final desafioA = a['apostas_disponiveis'] ?? {};
-        final desafioB = b['apostas_disponiveis'] ?? {};
+        final desafioA = a['desafios'] ?? {};
+        final desafioB = b['desafios'] ?? {};
 
         final estagioA = obterEstagioDesafio(desafioA);
         final estagioB = obterEstagioDesafio(desafioB);
@@ -216,7 +239,7 @@ class _TelaMinhasApostasState extends State<TelaMinhasApostas> {
                 const SizedBox(width: 8),
                 _buildFilterChip('Em Andamento'),
                 const SizedBox(width: 8),
-                _buildFilterChip('A iniciar'), 
+                _buildFilterChip('A iniciar'),
                 const SizedBox(width: 8),
                 _buildFilterChip('Concluídos'),
               ],
@@ -226,7 +249,7 @@ class _TelaMinhasApostasState extends State<TelaMinhasApostas> {
         Expanded(
           child: RefreshIndicator(
             onRefresh: _buscarInscricoesDoSupabase,
-            color: Colors.greenAccent,
+            color: AppColors.primary,
             child: inscricoesFiltradas.isEmpty
                 ? const Center(
                     child: Text(
@@ -236,48 +259,79 @@ class _TelaMinhasApostasState extends State<TelaMinhasApostas> {
                   )
                 : ListView.builder(
                     itemCount: inscricoesFiltradas.length,
-                    padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 16,
+                      vertical: 8,
+                    ),
                     itemBuilder: (context, index) {
                       final inscricao = inscricoesFiltradas[index];
-                      final desafio = inscricao['apostas_disponiveis'] ?? {}; 
+                      final desafio = inscricao['desafios'] ?? {};
 
-                      final String titulo = desafio['nome'] ?? 'Desafio sem nome';
+                      final String titulo =
+                          desafio['nome'] ?? 'Desafio sem nome';
                       final String desafioId = desafio['id']?.toString() ?? '';
-                      
-                      final dataLimite = DateTime.tryParse(desafio['data_limite_inscricao'] ?? '') ?? agora;
-                      final dataInicio = DateTime.tryParse(desafio['data_inicio'] ?? '') ?? agora;
-                      final dataFim = DateTime.tryParse(desafio['data_fim'] ?? '') ?? agora;
-                      
+
+                      final dataLimite =
+                          DateTime.tryParse(
+                            desafio['data_limite_inscricao'] ?? '',
+                          ) ??
+                          agora;
+                      final dataInicio =
+                          DateTime.tryParse(desafio['data_inicio'] ?? '') ??
+                          agora;
+                      final dataFim =
+                          DateTime.tryParse(desafio['data_fim'] ?? '') ?? agora;
+
                       final duracaoDias = dataFim.difference(dataInicio).inDays;
                       final String limiteFormatado = dataLimite.shortFormatted;
 
-                      final String statusPagamento = inscricao['status_pagamento'] ?? 'pendente';
-                      final String statusVideo = inscricao['status_video'] ?? 'nao_enviado';
+                      final String statusPagamento =
+                          inscricao['status_pagamento'] ?? 'pendente';
+                      final String statusVideo =
+                          inscricao['status_video'] ?? 'nao_enviado';
 
-                      final int atletasConfirmados = _atletasConfirmadosPorDesafio[desafioId] ?? 0;
-                      final double valorEntrada = double.tryParse(desafio['valor_entrada']?.toString() ?? '') ?? 0.0;
-                      final double poteAcumulado = atletasConfirmados * valorEntrada;
+                      final int atletasConfirmados =
+                          _atletasConfirmadosPorDesafio[desafioId] ?? 0;
+                      final double valorEntrada =
+                          double.tryParse(
+                            desafio['valor_entrada']?.toString() ?? '',
+                          ) ??
+                          0.0;
+                      final double poteAcumulado =
+                          atletasConfirmados * valorEntrada;
 
-                      final String estagioTemporal = obterEstagioDesafio(desafio);
-                      final Color corEstagio = _obterCorEstagio(estagioTemporal);
+                      final String estagioTemporal = obterEstagioDesafio(
+                        desafio,
+                      );
+                      final Color corEstagio = _obterCorEstagio(
+                        estagioTemporal,
+                      );
 
                       // 🚀 FIXED: Variável renomeada para 'jaComecou' evitando caracteres ilegais no Dart
-                      final bool irregular = (statusPagamento == 'pendente' || statusVideo == 'nao_enviado' || statusVideo == 'reprovado');
+                      final bool irregular =
+                          (statusPagamento == 'pendente' ||
+                          statusVideo == 'nao_enviado' ||
+                          statusVideo == 'reprovado');
                       final bool jaComecou = agora.isAfter(dataInicio);
-                      
+
                       int? diasRestantesCarencia;
                       if (irregular && jaComecou) {
-                        final dataLimiteCarencia = dataInicio.add(const Duration(days: 5));
-                        diasRestantesCarencia = dataLimiteCarencia.difference(agora).inDays + 1; 
+                        final dataLimiteCarencia = dataInicio.add(
+                          const Duration(days: 5),
+                        );
+                        diasRestantesCarencia =
+                            dataLimiteCarencia.difference(agora).inDays + 1;
                       }
 
                       return Card(
-                        color: const Color(0xFF1A1A1A),
+                        color: AppColors.card,
                         margin: const EdgeInsets.symmetric(vertical: 8),
                         shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(16), 
+                          borderRadius: BorderRadius.circular(16),
                           side: BorderSide(
-                            color: diasRestantesCarencia != null ? Colors.redAccent.withValues(alpha: 0.5) : Colors.white10,
+                            color: diasRestantesCarencia != null
+                                ? AppColors.error.withValues(alpha: 0.5)
+                                : Colors.white10,
                             width: diasRestantesCarencia != null ? 1.5 : 1,
                           ),
                         ),
@@ -303,22 +357,40 @@ class _TelaMinhasApostasState extends State<TelaMinhasApostas> {
                                   Container(
                                     width: double.infinity,
                                     margin: const EdgeInsets.only(bottom: 12),
-                                    padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                                    padding: const EdgeInsets.symmetric(
+                                      horizontal: 12,
+                                      vertical: 8,
+                                    ),
                                     decoration: BoxDecoration(
-                                      color: Colors.redAccent.withValues(alpha: 0.1),
+                                      color: AppColors.error.withValues(
+                                        alpha: 0.1,
+                                      ),
                                       borderRadius: BorderRadius.circular(8),
-                                      border: Border.all(color: Colors.redAccent.withValues(alpha: 0.3)),
+                                      border: Border.all(
+                                        color: AppColors.error.withValues(
+                                          alpha: 0.3,
+                                        ),
+                                      ),
                                     ),
                                     child: Row(
                                       children: [
-                                        const Icon(Icons.warning_amber_rounded, color: Colors.redAccent, size: 18),
+                                        const Icon(
+                                          Icons.warning_amber_rounded,
+                                          color: AppColors.error,
+                                          size: 18,
+                                        ),
                                         const SizedBox(width: 8),
                                         Expanded(
                                           child: Text(
-                                            jaComecou && diasRestantesCarencia <= 0
+                                            jaComecou &&
+                                                    diasRestantesCarencia <= 0
                                                 ? "⚠️ ATENÇÃO: Últimas horas para regularizar sua pesagem e pagamento!"
                                                 : "⚠️ Desafio em andamento! Regularize seu envio em até $diasRestantesCarencia dias para não ser desclassificado.",
-                                            style: const TextStyle(color: Colors.redAccent, fontSize: 12, fontWeight: FontWeight.bold),
+                                            style: const TextStyle(
+                                              color: AppColors.error,
+                                              fontSize: 12,
+                                              fontWeight: FontWeight.bold,
+                                            ),
                                           ),
                                         ),
                                       ],
@@ -327,58 +399,110 @@ class _TelaMinhasApostasState extends State<TelaMinhasApostas> {
                                 ],
 
                                 Row(
-                                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                                  mainAxisAlignment:
+                                      MainAxisAlignment.spaceBetween,
                                   children: [
                                     Expanded(
                                       child: Text(
                                         titulo,
-                                        style: const TextStyle(fontWeight: FontWeight.bold, color: Colors.white, fontSize: 18),
+                                        style: const TextStyle(
+                                          fontWeight: FontWeight.bold,
+                                          color: Colors.white,
+                                          fontSize: 18,
+                                        ),
                                       ),
                                     ),
                                     const SizedBox(width: 8),
                                     Container(
-                                      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                                      padding: const EdgeInsets.symmetric(
+                                        horizontal: 10,
+                                        vertical: 4,
+                                      ),
                                       decoration: BoxDecoration(
-                                        color: corEstagio.withValues(alpha: 0.1),
+                                        color: corEstagio.withValues(
+                                          alpha: 0.1,
+                                        ),
                                         borderRadius: BorderRadius.circular(20),
-                                        border: Border.all(color: corEstagio, width: 1),
+                                        border: Border.all(
+                                          color: corEstagio,
+                                          width: 1,
+                                        ),
                                       ),
                                       child: Text(
                                         estagioTemporal.toUpperCase(),
-                                        style: TextStyle(color: corEstagio, fontSize: 9, fontWeight: FontWeight.bold),
+                                        style: TextStyle(
+                                          color: corEstagio,
+                                          fontSize: 9,
+                                          fontWeight: FontWeight.bold,
+                                        ),
                                       ),
                                     ),
                                     const SizedBox(width: 8),
-                                    const Icon(Icons.arrow_forward_ios, color: Colors.white38, size: 14),
+                                    const Icon(
+                                      Icons.arrow_forward_ios,
+                                      color: Colors.white38,
+                                      size: 14,
+                                    ),
                                   ],
                                 ),
                                 const SizedBox(height: 12),
                                 Row(
                                   children: [
-                                    const Icon(Icons.timer_outlined, size: 16, color: Colors.white54),
+                                    const Icon(
+                                      Icons.timer_outlined,
+                                      size: 16,
+                                      color: Colors.white54,
+                                    ),
                                     const SizedBox(width: 6),
-                                    Text("Duração: $duracaoDias dias", style: const TextStyle(color: Colors.white70)),
+                                    Text(
+                                      "Duração: $duracaoDias dias",
+                                      style: const TextStyle(
+                                        color: Colors.white70,
+                                      ),
+                                    ),
                                     const SizedBox(width: 16),
-                                    const Icon(Icons.calendar_today, size: 16, color: Colors.white54),
+                                    const Icon(
+                                      Icons.calendar_today,
+                                      size: 16,
+                                      color: Colors.white54,
+                                    ),
                                     const SizedBox(width: 6),
-                                    Text("Inscrições até: $limiteFormatado", style: const TextStyle(color: Colors.white70)),
+                                    Text(
+                                      "Inscrições até: $limiteFormatado",
+                                      style: const TextStyle(
+                                        color: Colors.white70,
+                                      ),
+                                    ),
                                   ],
                                 ),
                                 const SizedBox(height: 8),
                                 Row(
                                   children: [
-                                    const Icon(Icons.people_alt_outlined, size: 16, color: Colors.greenAccent),
+                                    const Icon(
+                                      Icons.people_alt_outlined,
+                                      size: 16,
+                                      color: AppColors.secondary,
+                                    ),
                                     const SizedBox(width: 6),
                                     Text(
-                                      "$atletasConfirmados ${atletasConfirmados == 1 ? 'confirmado' : 'confirmados'}", 
-                                      style: const TextStyle(color: Colors.white70),
+                                      "$atletasConfirmados ${atletasConfirmados == 1 ? 'confirmado' : 'confirmados'}",
+                                      style: const TextStyle(
+                                        color: Colors.white70,
+                                      ),
                                     ),
                                     const SizedBox(width: 16),
-                                    const Icon(Icons.monetization_on_outlined, size: 16, color: Colors.greenAccent),
+                                    const Icon(
+                                      Icons.monetization_on_outlined,
+                                      size: 16,
+                                      color: AppColors.secondary,
+                                    ),
                                     const SizedBox(width: 6),
                                     Text(
-                                      "Pote: R\$ ${poteAcumulado.toStringAsFixed(2)}", 
-                                      style: const TextStyle(color: Colors.greenAccent, fontWeight: FontWeight.bold),
+                                      "Pote: R\$ ${poteAcumulado.toStringAsFixed(2)}",
+                                      style: const TextStyle(
+                                        color: AppColors.secondary,
+                                        fontWeight: FontWeight.bold,
+                                      ),
                                     ),
                                   ],
                                 ),
@@ -387,15 +511,35 @@ class _TelaMinhasApostasState extends State<TelaMinhasApostas> {
                                 Wrap(
                                   children: [
                                     if (statusPagamento == 'pendente')
-                                      _buildStatusBadge("Pagamento Pendente", Colors.orangeAccent, Icons.payment_outlined),
+                                      _buildStatusBadge(
+                                        "Pagamento Pendente",
+                                        AppColors.warning,
+                                        Icons.payment_outlined,
+                                      ),
                                     if (statusVideo == 'nao_enviado')
-                                      _buildStatusBadge("Vídeo Pesagem Pendente", Colors.redAccent, Icons.videocam_off_outlined),
+                                      _buildStatusBadge(
+                                        "Vídeo Pesagem Pendente",
+                                        AppColors.error,
+                                        Icons.videocam_off_outlined,
+                                      ),
                                     if (statusVideo == 'reprovado')
-                                      _buildStatusBadge("Vídeo Reprovado", Colors.redAccent, Icons.error_outline),
+                                      _buildStatusBadge(
+                                        "Vídeo Reprovado",
+                                        AppColors.error,
+                                        Icons.error_outline,
+                                      ),
                                     if (statusVideo == 'aprovado')
-                                      _buildStatusBadge("Vídeo Aprovado", Colors.greenAccent, Icons.check_circle_outline),
+                                      _buildStatusBadge(
+                                        "Vídeo Aprovado",
+                                        AppColors.success,
+                                        Icons.check_circle_outline,
+                                      ),
                                     if (statusVideo == 'em_analise')
-                                      _buildStatusBadge("Vídeo em Análise", Colors.blueAccent, Icons.hourglass_top),
+                                      _buildStatusBadge(
+                                        "Vídeo em Análise",
+                                        AppColors.info,
+                                        Icons.hourglass_top,
+                                      ),
                                   ],
                                 ),
                               ],
@@ -404,11 +548,11 @@ class _TelaMinhasApostasState extends State<TelaMinhasApostas> {
                         ),
                       );
                     },
-                  ), 
-          ), 
-        ), 
-      ], 
-    ); 
+                  ),
+          ),
+        ),
+      ],
+    );
   }
 
   Widget _buildTelaVaziaGeral() {
@@ -418,26 +562,40 @@ class _TelaMinhasApostasState extends State<TelaMinhasApostas> {
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            Icon(Icons.fitness_center, size: 80, color: Colors.white.withValues(alpha: 0.3)),
+            Icon(
+              Icons.fitness_center,
+              size: 80,
+              color: Colors.white.withValues(alpha: 0.3),
+            ),
             const SizedBox(height: 20),
             const Text(
               "Você não está em nenhum desafio no momento.",
               textAlign: TextAlign.center,
-              style: TextStyle(fontSize: 18, color: Colors.white70, fontWeight: FontWeight.w500),
+              style: TextStyle(
+                fontSize: 18,
+                color: Colors.white70,
+                fontWeight: FontWeight.w500,
+              ),
             ),
             const SizedBox(height: 32),
             SizedBox(
-              width: 220, height: 50,
+              width: 220,
+              height: 50,
               child: ElevatedButton.icon(
                 onPressed: widget.onIrParaNovaAposta,
-                icon: const Icon(Icons.search, color: Colors.black),
+                icon: const Icon(Icons.search, color: AppColors.onPrimary),
                 style: ElevatedButton.styleFrom(
-                  backgroundColor: Colors.greenAccent.shade400,
-                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                  backgroundColor: AppColors.primary,
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(12),
+                  ),
                 ),
                 label: const Text(
                   "BUSCAR DESAFIOS",
-                  style: TextStyle(color: Colors.black, fontWeight: FontWeight.bold),
+                  style: TextStyle(
+                    color: AppColors.onPrimary,
+                    fontWeight: FontWeight.bold,
+                  ),
                 ),
               ),
             ),

@@ -13,7 +13,7 @@ class TelaAdm extends StatefulWidget {
 
 class _TelaAdmState extends State<TelaAdm> {
   final _formKey = GlobalKey<FormState>();
-  
+
   // Controllers do Formulário de Criação
   final _tituloController = TextEditingController();
   final _descricaoController = TextEditingController();
@@ -25,36 +25,37 @@ class _TelaAdmState extends State<TelaAdm> {
   DateTime? _dataInicioSelecionada;
   DateTime? _dataLimiteSelecionada;
   DateTime? _dataFimSelecionada;
-  
-  String _duracaoTexto = "0"; 
+
+  String _duracaoTexto = "0";
   bool _salvando = false;
 
   // Gerenciamento e Listagem
   List<dynamic> _desafiosCadastrados = [];
   bool _carregandoListagem = false;
 
-  final _buscaNomeController = TextEditingController(); 
-  DateTimeRange? _filtroDataRange; 
+  final _buscaNomeController = TextEditingController();
+  DateTimeRange? _filtroDataRange;
 
   // 🚀 NOVAS VARIÁVEIS PARA ABA DE MODERAÇÃO DE VÍDEOS COM SUPORTE A PAGINAÇÃO
   List<dynamic> _videosParaAnalise = [];
   bool _carregandoVideos = false;
 
   // 🚀 VARIÁVEIS DE PAGINAÇÃO DE ALTA PERFORMANCE (CORRIGIDO: INJETADAS NO STATE)
-  final int _itensPorPagina = 10; 
-  int _paginaAtual = 0;           
-  bool _temMaisDados = true;      
-  bool _carregandoMais = false;   
-  final ScrollController _scrollController = ScrollController(); 
+  final int _itensPorPagina = 10;
+  int _paginaAtual = 0;
+  bool _temMaisDados = true;
+  bool _carregandoMais = false;
+  final ScrollController _scrollController = ScrollController();
 
   @override
-  void initState() { 
+  void initState() {
     super.initState();
-    _buscarVideosParaAnalise(resetar: true); 
+    _buscarVideosParaAnalise(resetar: true);
 
     // Ouvinte da barra de rolagem (Dispara carregamento automático ao atingir 80% da tela)
     _scrollController.addListener(() {
-      if (_scrollController.position.pixels >= _scrollController.position.maxScrollExtent * 0.8) {
+      if (_scrollController.position.pixels >=
+          _scrollController.position.maxScrollExtent * 0.8) {
         _buscarVideosParaAnalise(resetar: false);
       }
     });
@@ -62,15 +63,15 @@ class _TelaAdmState extends State<TelaAdm> {
 
   @override
   void dispose() {
-    _scrollController.dispose(); 
+    _scrollController.dispose();
     _tituloController.dispose();
     _descricaoController.dispose();
     _valorController.dispose();
     _dataInicioController.dispose();
     _dataLimiteInscricaoController.dispose();
     _dataFimController.dispose();
-    _buscaNomeController.dispose(); 
-    super.dispose(); 
+    _buscaNomeController.dispose();
+    super.dispose();
   }
 
   // 🚀 BUSCA INSCRIÇÕES COM PAGINAÇÃO E INFINITE SCROLL (.range() NATIVO DO SUPABASE)
@@ -84,7 +85,7 @@ class _TelaAdmState extends State<TelaAdm> {
         _carregandoVideos = true;
         _paginaAtual = 0;
         _temMaisDados = true;
-        _videosParaAnalise = []; 
+        _videosParaAnalise = [];
       } else {
         _carregandoMais = true;
       }
@@ -97,8 +98,8 @@ class _TelaAdmState extends State<TelaAdm> {
       print("ADM: Buscando bloco de $de até $ate...");
 
       final dados = await supabase
-          .from('participantes_apostas')
-          .select('*, usuarios(nome), apostas_disponiveis(nome)')
+          .from('participantes_desafios')
+          .select('*, usuarios(nome), desafios(nome)')
           .eq('status_video', 'em_analise')
           .order('created_at', ascending: true)
           .range(de, ate);
@@ -107,11 +108,11 @@ class _TelaAdmState extends State<TelaAdm> {
         _videosParaAnalise.addAll(dados);
         _carregandoVideos = false;
         _carregandoMais = false;
-        
+
         if (dados.length < _itensPorPagina) {
           _temMaisDados = false;
         } else {
-          _paginaAtual++; 
+          _paginaAtual++;
         }
       });
     } catch (e) {
@@ -128,7 +129,8 @@ class _TelaAdmState extends State<TelaAdm> {
     if (url.isEmpty) return;
     showDialog(
       context: context,
-      builder: (context) => ModalPlayerVideo(urlVideo: url, titulo: tituloVideo),
+      builder: (context) =>
+          ModalPlayerVideo(urlVideo: url, titulo: tituloVideo),
     );
   }
 
@@ -137,26 +139,32 @@ class _TelaAdmState extends State<TelaAdm> {
     try {
       // Chamando via RPC seguro interno do Supabase
       await supabase.rpc(
-        'moderar_pesagem', 
-        params: {
-          'inscricao_id': inscricaoId,
-          'novo_status': novoStatus,
-        },
+        'moderar_pesagem',
+        params: {'inscricao_id': inscricaoId, 'novo_status': novoStatus},
       );
 
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: Text(novoStatus == 'aprovado' ? "✅ Pesagem Homologada via Função!" : "❌ Vídeo Reprovado via Função."),
-            backgroundColor: novoStatus == 'aprovado' ? Colors.green : Colors.redAccent,
+            content: Text(
+              novoStatus == 'aprovado'
+                  ? "✅ Pesagem Homologada via Função!"
+                  : "❌ Vídeo Reprovado via Função.",
+            ),
+            backgroundColor: novoStatus == 'aprovado'
+                ? AppColors.success
+                : AppColors.error,
           ),
         );
-        _buscarVideosParaAnalise(resetar: true); 
+        _buscarVideosParaAnalise(resetar: true);
       }
     } catch (e) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text("Erro ao salvar decisão: $e"), backgroundColor: Colors.redAccent),
+          SnackBar(
+            content: Text("Erro ao salvar decisão: $e"),
+            backgroundColor: AppColors.error,
+          ),
         );
       }
     }
@@ -166,7 +174,7 @@ class _TelaAdmState extends State<TelaAdm> {
     setState(() => _carregandoListagem = true);
     try {
       final dados = await supabase
-          .from('apostas_disponiveis')
+          .from('desafios')
           .select('*')
           .eq('is_deleted', false)
           .order('data_inicio', ascending: true);
@@ -179,7 +187,10 @@ class _TelaAdmState extends State<TelaAdm> {
       setState(() => _carregandoListagem = false);
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text("❌ Erro ao listar desafios: $e"), backgroundColor: Colors.redAccent),
+          SnackBar(
+            content: Text("❌ Erro ao listar desafios: $e"),
+            backgroundColor: AppColors.error,
+          ),
         );
       }
     }
@@ -188,7 +199,7 @@ class _TelaAdmState extends State<TelaAdm> {
   Future<void> _excluirDesafio(dynamic desafioId) async {
     try {
       await supabase
-          .from('apostas_disponiveis')
+          .from('desafios')
           .update({
             'is_deleted': true,
             'deleted_at': DateTime.now().toIso8601String(),
@@ -197,14 +208,20 @@ class _TelaAdmState extends State<TelaAdm> {
 
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text("🗑️ Desafio arquivado/excluído com sucesso!"), backgroundColor: Colors.orangeAccent),
+          const SnackBar(
+            content: Text("🗑️ Desafio arquivado/excluído com sucesso!"),
+            backgroundColor: AppColors.warning,
+          ),
         );
       }
-      _buscarDesafiosDoSupabase(); 
+      _buscarDesafiosDoSupabase();
     } catch (e) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text("❌ Erro ao excluir: $e"), backgroundColor: Colors.redAccent),
+          SnackBar(
+            content: Text("❌ Erro ao excluir: $e"),
+            backgroundColor: AppColors.error,
+          ),
         );
       }
     }
@@ -212,7 +229,9 @@ class _TelaAdmState extends State<TelaAdm> {
 
   void _atualizarDuracao() {
     if (_dataInicioSelecionada != null && _dataFimSelecionada != null) {
-      final diferenca = _dataFimSelecionada!.difference(_dataInicioSelecionada!).inDays;
+      final diferenca = _dataFimSelecionada!
+          .difference(_dataInicioSelecionada!)
+          .inDays;
       setState(() {
         _duracaoTexto = diferenca > 0 ? "$diferenca" : "0";
       });
@@ -221,13 +240,19 @@ class _TelaAdmState extends State<TelaAdm> {
 
   Future<void> _selecionarData(BuildContext context, int tipoData) async {
     DateTime dataInicialCalendario = DateTime.now();
-    DateTime primeiroDiaDisponivel = DateTime.now().subtract(const Duration(days: 365));
-    DateTime ultimoDiaDisponivel = DateTime.now().add(const Duration(days: 365));
+    DateTime primeiroDiaDisponivel = DateTime.now().subtract(
+      const Duration(days: 365),
+    );
+    DateTime ultimoDiaDisponivel = DateTime.now().add(
+      const Duration(days: 365),
+    );
 
     if (tipoData == 2 && _dataInicioSelecionada != null) {
       dataInicialCalendario = _dataInicioSelecionada!;
-      primeiroDiaDisponivel = _dataInicioSelecionada!; 
-      ultimoDiaDisponivel = _dataInicioSelecionada!.add(const Duration(days: 5)); 
+      primeiroDiaDisponivel = _dataInicioSelecionada!;
+      ultimoDiaDisponivel = _dataInicioSelecionada!.add(
+        const Duration(days: 5),
+      );
     }
 
     final DateTime? escolhida = await showDatePicker(
@@ -240,7 +265,7 @@ class _TelaAdmState extends State<TelaAdm> {
     if (escolhida != null) {
       setState(() {
         String dataFormatada = escolhida.formatted;
-        
+
         if (tipoData == 1) {
           _dataInicioSelecionada = escolhida;
           _dataInicioController.text = dataFormatada;
@@ -268,9 +293,9 @@ class _TelaAdmState extends State<TelaAdm> {
         return Theme(
           data: Theme.of(context).copyWith(
             colorScheme: const ColorScheme.dark(
-              primary: Color(0xFF00E676),
-              onPrimary: Colors.black,
-              surface: Color(0xFF1E1E1E),
+              primary: AppColors.primary,
+              onPrimary: AppColors.onPrimary,
+              surface: AppColors.surface,
               onSurface: Colors.white,
             ),
           ),
@@ -292,7 +317,12 @@ class _TelaAdmState extends State<TelaAdm> {
     if (_dataFimSelecionada != null && _dataInicioSelecionada != null) {
       if (_dataFimSelecionada!.isBefore(_dataInicioSelecionada!)) {
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text("❌ A data de término não pode ser antes da data de início!"), backgroundColor: Colors.redAccent),
+          const SnackBar(
+            content: Text(
+              "❌ A data de término não pode ser antes da data de início!",
+            ),
+            backgroundColor: AppColors.error,
+          ),
         );
         return;
       }
@@ -304,21 +334,24 @@ class _TelaAdmState extends State<TelaAdm> {
       final double valorAposta = double.parse(valorLimpo);
       final int diasDuracao = int.tryParse(_duracaoTexto) ?? 0;
 
-      await supabase.from('apostas_disponiveis').insert({
+      await supabase.from('desafios').insert({
         'nome': _tituloController.text.trim(),
         'descricao': _descricaoController.text.trim(),
         'valor_entrada': valorAposta,
         'data_inicio': _dataInicioSelecionada?.toIso8601String(),
         'data_limite_inscricao': _dataLimiteSelecionada?.toIso8601String(),
         'data_fim': _dataFimSelecionada?.toIso8601String(),
-        'duracao': diasDuracao, 
+        'duracao': diasDuracao,
         'is_deleted': false,
         'created_at': DateTime.now().toIso8601String(),
       });
 
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text("🚀 Novo desafio lançado com sucesso!"), backgroundColor: Colors.green),
+          const SnackBar(
+            content: Text("🚀 Novo desafio lançado com sucesso!"),
+            backgroundColor: AppColors.success,
+          ),
         );
         _tituloController.clear();
         _descricaoController.clear();
@@ -333,11 +366,14 @@ class _TelaAdmState extends State<TelaAdm> {
           _duracaoTexto = "0";
         });
       }
-      _buscarDesafiosDoSupabase(); 
+      _buscarDesafiosDoSupabase();
     } catch (e) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text("❌ Erro ao lançar desafio: $e"), backgroundColor: Colors.redAccent),
+          SnackBar(
+            content: Text("❌ Erro ao lançar desafio: $e"),
+            backgroundColor: AppColors.error,
+          ),
         );
       }
     } finally {
@@ -349,17 +385,35 @@ class _TelaAdmState extends State<TelaAdm> {
     showDialog(
       context: context,
       builder: (context) => AlertDialog(
-        backgroundColor: const Color(0xFF1A1A1A),
-        title: const Text("Excluir Desafio?", style: TextStyle(color: Colors.white)),
-        content: Text("Tem certeza que deseja remover o desafio '$nome'?", style: const TextStyle(color: Colors.white70)),
+        backgroundColor: AppColors.card,
+        title: const Text(
+          "Excluir Desafio?",
+          style: TextStyle(color: Colors.white),
+        ),
+        content: Text(
+          "Tem certeza que deseja remover o desafio '$nome'?",
+          style: const TextStyle(color: Colors.white70),
+        ),
         actions: [
-          TextButton(onPressed: () => Navigator.pop(context), child: const Text("CANCELAR", style: TextStyle(color: Colors.white38))),
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: const Text(
+              "CANCELAR",
+              style: TextStyle(color: Colors.white38),
+            ),
+          ),
           TextButton(
             onPressed: () {
               Navigator.pop(context);
               _excluirDesafio(id);
             },
-            child: const Text("CONFIRMAR", style: TextStyle(color: Colors.redAccent, fontWeight: FontWeight.bold)),
+            child: const Text(
+              "CONFIRMAR",
+              style: TextStyle(
+                color: AppColors.error,
+                fontWeight: FontWeight.bold,
+              ),
+            ),
           ),
         ],
       ),
@@ -369,21 +423,24 @@ class _TelaAdmState extends State<TelaAdm> {
   @override
   Widget build(BuildContext context) {
     return DefaultTabController(
-      length: 3, 
+      length: 3,
       child: Scaffold(
-        backgroundColor: const Color(0xFF121212),
+        backgroundColor: AppColors.background,
         appBar: AppBar(
-          backgroundColor: const Color(0xFF121212),
-          title: const Text("Painel do Administrador", style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
+          backgroundColor: AppColors.background,
+          title: const Text(
+            "Painel do Administrador",
+            style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold),
+          ),
           elevation: 0,
           bottom: const TabBar(
-            indicatorColor: Color(0xFF00E676),
-            labelColor: Color(0xFF00E676),
+            indicatorColor: AppColors.primary,
+            labelColor: AppColors.primary,
             unselectedLabelColor: Colors.white54,
             tabs: [
               Tab(icon: Icon(Icons.add_box_outlined), text: "Lançar"),
               Tab(icon: Icon(Icons.settings_outlined), text: "Gerenciar"),
-              Tab(icon: Icon(Icons.rate_review_outlined), text: "Vídeos"), 
+              Tab(icon: Icon(Icons.rate_review_outlined), text: "Vídeos"),
             ],
           ),
         ),
@@ -391,7 +448,7 @@ class _TelaAdmState extends State<TelaAdm> {
           children: [
             _buildAbaLancamento(),
             _buildAbaGerenciamento(),
-            _buildAbaModerarVideos(), 
+            _buildAbaModerarVideos(),
           ],
         ),
       ),
@@ -409,26 +466,42 @@ class _TelaAdmState extends State<TelaAdm> {
             TextFormField(
               controller: _tituloController,
               style: const TextStyle(color: Colors.white),
-              decoration: _buildInputDecoration("Nome do Desafio", Icons.emoji_events_outlined),
-              validator: (v) => v == null || v.trim().isEmpty ? "O nome é obrigatório" : null,
+              decoration: _buildInputDecoration(
+                "Nome do Desafio",
+                Icons.emoji_events_outlined,
+              ),
+              validator: (v) =>
+                  v == null || v.trim().isEmpty ? "O nome é obrigatório" : null,
             ),
             const SizedBox(height: 16),
             TextFormField(
               controller: _descricaoController,
               maxLines: 3,
               style: const TextStyle(color: Colors.white),
-              decoration: _buildInputDecoration("Descrição / Regras do Desafio", Icons.description_outlined),
-              validator: (v) => v == null || v.trim().isEmpty ? "A descrição é obrigatória" : null,
+              decoration: _buildInputDecoration(
+                "Descrição / Regras do Desafio",
+                Icons.description_outlined,
+              ),
+              validator: (v) => v == null || v.trim().isEmpty
+                  ? "A descrição é obrigatória"
+                  : null,
             ),
             const SizedBox(height: 16),
             TextFormField(
               controller: _valorController,
-              keyboardType: const TextInputType.numberWithOptions(decimal: true),
+              keyboardType: const TextInputType.numberWithOptions(
+                decimal: true,
+              ),
               style: const TextStyle(color: Colors.white),
-              decoration: _buildInputDecoration("Valor da Aposta (em Reais)", Icons.attach_money),
+              decoration: _buildInputDecoration(
+                "Valor da Aposta (em Reais)",
+                Icons.attach_money,
+              ),
               validator: (v) {
-                if (v == null || v.trim().isEmpty) return "O valor é obrigatório";
-                if (double.tryParse(v.replaceAll(',', '.').trim()) == null) return "Número inválido";
+                if (v == null || v.trim().isEmpty)
+                  return "O valor é obrigatório";
+                if (double.tryParse(v.replaceAll(',', '.').trim()) == null)
+                  return "Número inválido";
                 return null;
               },
             ),
@@ -437,43 +510,67 @@ class _TelaAdmState extends State<TelaAdm> {
               controller: _dataInicioController,
               readOnly: true,
               style: const TextStyle(color: Colors.white),
-              decoration: _buildInputDecoration("Data de Início do Desafio", Icons.calendar_today_outlined),
+              decoration: _buildInputDecoration(
+                "Data de Início do Desafio",
+                Icons.calendar_today_outlined,
+              ),
               onTap: () => _selecionarData(context, 1),
-              validator: (v) => v == null || v.isEmpty ? "A data de início é obrigatória" : null,
+              validator: (v) => v == null || v.isEmpty
+                  ? "A data de início é obrigatória"
+                  : null,
             ),
             const SizedBox(height: 16),
             TextFormField(
               controller: _dataLimiteInscricaoController,
               readOnly: true,
               style: const TextStyle(color: Colors.white),
-              decoration: _buildInputDecoration("Data Limite de Inscrição", Icons.event_busy_outlined),
+              decoration: _buildInputDecoration(
+                "Data Limite de Inscrição",
+                Icons.event_busy_outlined,
+              ),
               onTap: () => _selecionarData(context, 2),
-              validator: (v) => v == null || v.isEmpty ? "A data limite é obrigatória" : null,
+              validator: (v) =>
+                  v == null || v.isEmpty ? "A data limite é obrigatória" : null,
             ),
             const SizedBox(height: 16),
             TextFormField(
               controller: _dataFimController,
               readOnly: true,
               style: const TextStyle(color: Colors.white),
-              decoration: _buildInputDecoration("Data de Término do Desafio", Icons.gavel_outlined),
+              decoration: _buildInputDecoration(
+                "Data de Término do Desafio",
+                Icons.gavel_outlined,
+              ),
               onTap: () => _selecionarData(context, 3),
-              validator: (v) => v == null || v.isEmpty ? "A data de término é obrigatória" : null,
+              validator: (v) => v == null || v.isEmpty
+                  ? "A data de término é obrigatória"
+                  : null,
             ),
             const SizedBox(height: 20),
             Container(
               width: double.infinity,
               padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
               decoration: BoxDecoration(
-                color: const Color(0xFF1E1E1E),
+                color: AppColors.surface,
                 borderRadius: BorderRadius.circular(12),
                 border: Border.all(color: Colors.white10),
               ),
               child: Row(
                 children: [
-                  Icon(Icons.timelapse, color: Colors.greenAccent.shade400),
+                  Icon(Icons.timelapse, color: AppColors.primary),
                   const SizedBox(width: 12),
-                  const Text("Duração Calculada: ", style: TextStyle(color: Colors.white70, fontSize: 14)),
-                  Text("$_duracaoTexto dias", style: const TextStyle(color: Color(0xFF00E676), fontSize: 15, fontWeight: FontWeight.bold)),
+                  const Text(
+                    "Duração Calculada: ",
+                    style: TextStyle(color: Colors.white70, fontSize: 14),
+                  ),
+                  Text(
+                    "$_duracaoTexto dias",
+                    style: const TextStyle(
+                      color: AppColors.primary,
+                      fontSize: 15,
+                      fontWeight: FontWeight.bold,
+                    ),
+                  ),
                 ],
               ),
             ),
@@ -484,14 +581,29 @@ class _TelaAdmState extends State<TelaAdm> {
               child: ElevatedButton(
                 onPressed: _salvando ? null : _salvarDesafio,
                 style: ElevatedButton.styleFrom(
-                  backgroundColor: const Color(0xFF00E676),
-                  foregroundColor: Colors.black,
-                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                  backgroundColor: AppColors.primary,
+                  foregroundColor: AppColors.onPrimary,
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(12),
+                  ),
                   elevation: 0,
                 ),
                 child: _salvando
-                    ? const SizedBox(height: 20, width: 20, child: CircularProgressIndicator(color: Colors.black, strokeWidth: 2))
-                    : const Text("Lançar Desafio", style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
+                    ? const SizedBox(
+                        height: 20,
+                        width: 20,
+                        child: CircularProgressIndicator(
+                          color: AppColors.onPrimary,
+                          strokeWidth: 2,
+                        ),
+                      )
+                    : const Text(
+                        "Lançar Desafio",
+                        style: TextStyle(
+                          fontSize: 16,
+                          fontWeight: FontWeight.bold,
+                        ),
+                      ),
               ),
             ),
           ],
@@ -502,7 +614,9 @@ class _TelaAdmState extends State<TelaAdm> {
 
   Widget _buildAbaGerenciamento() {
     if (_carregandoListagem) {
-      return const Center(child: CircularProgressIndicator(color: Color(0xFF00E676)));
+      return const Center(
+        child: CircularProgressIndicator(color: AppColors.primary),
+      );
     }
 
     final desafiosFiltrados = _desafiosCadastrados.where((item) {
@@ -516,11 +630,24 @@ class _TelaAdmState extends State<TelaAdm> {
         final dataInicioItem = DateTime.tryParse(item['data_inicio'] ?? '');
         if (dataInicioItem == null) return false;
 
-        final dataItemZero = DateTime(dataInicioItem.year, dataInicioItem.month, dataInicioItem.day);
-        final dataStartZero = DateTime(_filtroDataRange!.start.year, _filtroDataRange!.start.month, _filtroDataRange!.start.day);
-        final dataEndZero = DateTime(_filtroDataRange!.end.year, _filtroDataRange!.end.month, _filtroDataRange!.end.day);
+        final dataItemZero = DateTime(
+          dataInicioItem.year,
+          dataInicioItem.month,
+          dataInicioItem.day,
+        );
+        final dataStartZero = DateTime(
+          _filtroDataRange!.start.year,
+          _filtroDataRange!.start.month,
+          _filtroDataRange!.start.day,
+        );
+        final dataEndZero = DateTime(
+          _filtroDataRange!.end.year,
+          _filtroDataRange!.end.month,
+          _filtroDataRange!.end.day,
+        );
 
-        if (dataItemZero.isBefore(dataStartZero) || dataItemZero.isAfter(dataEndZero)) {
+        if (dataItemZero.isBefore(dataStartZero) ||
+            dataItemZero.isAfter(dataEndZero)) {
           return false;
         }
       }
@@ -536,8 +663,11 @@ class _TelaAdmState extends State<TelaAdm> {
               TextField(
                 controller: _buscaNomeController,
                 style: const TextStyle(color: Colors.white),
-                onChanged: (value) => setState(() {}), 
-                decoration: _buildInputDecoration("Procurar por nome do desafio...", Icons.search),
+                onChanged: (value) => setState(() {}),
+                decoration: _buildInputDecoration(
+                  "Procurar por nome do desafio...",
+                  Icons.search,
+                ),
               ),
               const SizedBox(height: 12),
               Row(
@@ -546,22 +676,34 @@ class _TelaAdmState extends State<TelaAdm> {
                     child: InkWell(
                       onTap: () => _selecionarDataRangeFiltro(context),
                       child: Container(
-                        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 16,
+                          vertical: 12,
+                        ),
                         decoration: BoxDecoration(
-                          color: const Color(0xFF1E1E1E),
+                          color: AppColors.surface,
                           borderRadius: BorderRadius.circular(12),
                           border: Border.all(color: Colors.white10),
                         ),
                         child: Row(
                           children: [
-                            const Icon(Icons.date_range_outlined, color: Color(0xFF00E676), size: 20),
+                            const Icon(
+                              Icons.date_range_outlined,
+                              color: AppColors.primary,
+                              size: 20,
+                            ),
                             const SizedBox(width: 12),
                             Expanded(
                               child: Text(
-                                _filtroDataRange == null 
-                                    ? "Filtrar por Período de Início" 
+                                _filtroDataRange == null
+                                    ? "Filtrar por Período de Início"
                                     : "Período: ${_filtroDataRange!.start.day}/${_filtroDataRange!.start.month} até ${_filtroDataRange!.end.day}/${_filtroDataRange!.end.month}/${_filtroDataRange!.end.year}",
-                                style: TextStyle(color: _filtroDataRange == null ? Colors.white54 : Colors.white, fontSize: 14),
+                                style: TextStyle(
+                                  color: _filtroDataRange == null
+                                      ? Colors.white54
+                                      : Colors.white,
+                                  fontSize: 14,
+                                ),
                               ),
                             ),
                           ],
@@ -573,9 +715,9 @@ class _TelaAdmState extends State<TelaAdm> {
                     const SizedBox(width: 8),
                     IconButton(
                       onPressed: () => setState(() => _filtroDataRange = null),
-                      icon: const Icon(Icons.close, color: Colors.redAccent),
-                    )
-                  ]
+                      icon: const Icon(Icons.close, color: AppColors.error),
+                    ),
+                  ],
                 ],
               ),
             ],
@@ -584,9 +726,14 @@ class _TelaAdmState extends State<TelaAdm> {
         Expanded(
           child: RefreshIndicator(
             onRefresh: _buscarDesafiosDoSupabase,
-            color: const Color(0xFF00E676),
+            color: AppColors.primary,
             child: desafiosFiltrados.isEmpty
-                ? const Center(child: Text("Nenhum desafio correspondente encontrado.", style: TextStyle(color: Colors.white38)))
+                ? const Center(
+                    child: Text(
+                      "Nenhum desafio correspondente encontrado.",
+                      style: TextStyle(color: Colors.white38),
+                    ),
+                  )
                 : ListView.builder(
                     itemCount: desafiosFiltrados.length,
                     padding: const EdgeInsets.symmetric(horizontal: 16),
@@ -594,24 +741,57 @@ class _TelaAdmState extends State<TelaAdm> {
                       final item = desafiosFiltrados[index];
                       final dynamic id = item['id'];
                       final String nome = item['nome'] ?? 'Sem nome';
-                      final double valor = double.tryParse(item['valor_entrada']?.toString() ?? '') ?? 0.0;
-                      final dtInicio = DateTime.tryParse(item['data_inicio'] ?? '') ?? DateTime.now();
+                      final double valor =
+                          double.tryParse(
+                            item['valor_entrada']?.toString() ?? '',
+                          ) ??
+                          0.0;
+                      final dtInicio =
+                          DateTime.tryParse(item['data_inicio'] ?? '') ??
+                          DateTime.now();
                       final String inicioFormatado = dtInicio.formatted;
 
                       return Card(
-                        color: const Color(0xFF1A1A1A),
+                        color: AppColors.card,
                         margin: const EdgeInsets.symmetric(vertical: 6),
-                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12), side: const BorderSide(color: Colors.white10)),
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(12),
+                          side: const BorderSide(color: Colors.white10),
+                        ),
                         child: ListTile(
-                          contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
-                          leading: const CircleAvatar(backgroundColor: Colors.white10, child: Icon(Icons.emoji_events, color: Color(0xFF00E676))),
-                          title: Text(nome, style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
+                          contentPadding: const EdgeInsets.symmetric(
+                            horizontal: 16,
+                            vertical: 4,
+                          ),
+                          leading: const CircleAvatar(
+                            backgroundColor: Colors.white10,
+                            child: Icon(
+                              Icons.emoji_events,
+                              color: AppColors.primary,
+                            ),
+                          ),
+                          title: Text(
+                            nome,
+                            style: const TextStyle(
+                              color: Colors.white,
+                              fontWeight: FontWeight.bold,
+                            ),
+                          ),
                           subtitle: Padding(
                             padding: const EdgeInsets.only(top: 4.0),
-                            child: Text("Inicia em: $inicioFormatado\nValor: R\$ ${valor.toStringAsFixed(2)}", style: const TextStyle(color: Colors.white54, fontSize: 13)),
+                            child: Text(
+                              "Inicia em: $inicioFormatado\nValor: R\$ ${valor.toStringAsFixed(2)}",
+                              style: const TextStyle(
+                                color: Colors.white54,
+                                fontSize: 13,
+                              ),
+                            ),
                           ),
                           trailing: IconButton(
-                            icon: const Icon(Icons.delete_outline, color: Colors.redAccent),
+                            icon: const Icon(
+                              Icons.delete_outline,
+                              color: AppColors.error,
+                            ),
                             onPressed: () => _mostrarDialogExclusao(id, nome),
                           ),
                         ),
@@ -627,14 +807,21 @@ class _TelaAdmState extends State<TelaAdm> {
   // 🚀 INTERFACE DA FILA DE MODERAÇÃO TOTALMENTE OTIMIZADA COM PAGINAÇÃO INFINITA
   Widget _buildAbaModerarVideos() {
     if (_carregandoVideos) {
-      return const Center(child: CircularProgressIndicator(color: Color(0xFF00E676)));
+      return const Center(
+        child: CircularProgressIndicator(color: AppColors.primary),
+      );
     }
 
     return RefreshIndicator(
       onRefresh: () => _buscarVideosParaAnalise(resetar: true),
-      color: const Color(0xFF00E676),
+      color: AppColors.primary,
       child: _videosParaAnalise.isEmpty
-          ? const Center(child: Text("🎉 Tudo limpo! Nenhum vídeo pendente de análise.", style: TextStyle(color: Colors.white54)))
+          ? const Center(
+              child: Text(
+                "🎉 Tudo limpo! Nenhum vídeo pendente de análise.",
+                style: TextStyle(color: Colors.white54),
+              ),
+            )
           : ListView.builder(
               controller: _scrollController, // 🚀 ESCUTA A ROLAGEM AQUI
               itemCount: _videosParaAnalise.length + (_temMaisDados ? 1 : 0),
@@ -644,16 +831,23 @@ class _TelaAdmState extends State<TelaAdm> {
                 if (index == _videosParaAnalise.length) {
                   return const Padding(
                     padding: EdgeInsets.symmetric(vertical: 16),
-                    child: Center(child: CircularProgressIndicator(color: Color(0xFF00E676))),
+                    child: Center(
+                      child: CircularProgressIndicator(
+                        color: AppColors.primary,
+                      ),
+                    ),
                   );
                 }
 
                 final inscricao = _videosParaAnalise[index];
-                
-                final usuarioNome = inscricao['usuarios']?['nome'] ?? 'Atleta Desconhecido';
-                final desafioNome = inscricao['apostas_disponiveis']?['nome'] ?? 'Desafio não identificado';
+
+                final usuarioNome =
+                    inscricao['usuarios']?['nome'] ?? 'Atleta Desconhecido';
+                final desafioNome =
+                    inscricao['desafios']?['nome'] ??
+                    'Desafio não identificado';
                 final codigoEscrito = inscricao['codigo_verificacao'] ?? '---';
-                
+
                 final urlRosto = inscricao['video_rosto_url'] ?? '';
                 final urlPeso = inscricao['video_peso_url'] ?? '';
 
@@ -661,7 +855,7 @@ class _TelaAdmState extends State<TelaAdm> {
                   margin: const EdgeInsets.symmetric(vertical: 8),
                   padding: const EdgeInsets.all(16),
                   decoration: BoxDecoration(
-                    color: const Color(0xFF1A1A1A),
+                    color: AppColors.card,
                     borderRadius: BorderRadius.circular(14),
                     border: Border.all(color: Colors.white10),
                   ),
@@ -675,68 +869,155 @@ class _TelaAdmState extends State<TelaAdm> {
                             child: Column(
                               crossAxisAlignment: CrossAxisAlignment.start,
                               children: [
-                                Text(usuarioNome, style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 16)),
+                                Text(
+                                  usuarioNome,
+                                  style: const TextStyle(
+                                    color: Colors.white,
+                                    fontWeight: FontWeight.bold,
+                                    fontSize: 16,
+                                  ),
+                                ),
                                 const SizedBox(height: 2),
-                                Text("Desafio: $desafioNome", style: const TextStyle(color: Colors.white54, fontSize: 13)),
+                                Text(
+                                  "Desafio: $desafioNome",
+                                  style: const TextStyle(
+                                    color: Colors.white54,
+                                    fontSize: 13,
+                                  ),
+                                ),
                               ],
                             ),
                           ),
                           Container(
-                            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
-                            decoration: BoxDecoration(color: Colors.redAccent.withValues(alpha: 0.1), borderRadius: BorderRadius.circular(8)),
-                            child: Text("CÓDIGO: $codigoEscrito", style: const TextStyle(color: Colors.redAccent, fontSize: 11, fontWeight: FontWeight.bold)),
+                            padding: const EdgeInsets.symmetric(
+                              horizontal: 10,
+                              vertical: 4,
+                            ),
+                            decoration: BoxDecoration(
+                              color: AppColors.error.withValues(alpha: 0.1),
+                              borderRadius: BorderRadius.circular(8),
+                            ),
+                            child: Text(
+                              "CÓDIGO: $codigoEscrito",
+                              style: const TextStyle(
+                                color: AppColors.error,
+                                fontSize: 11,
+                                fontWeight: FontWeight.bold,
+                              ),
+                            ),
                           ),
                         ],
                       ),
                       const Divider(color: Colors.white10, height: 24),
-                      
-                      const Text("VÍDEOS DA PESAGEM:", style: TextStyle(color: Colors.white38, fontSize: 11, fontWeight: FontWeight.bold)),
+
+                      const Text(
+                        "VÍDEOS DA PESAGEM:",
+                        style: TextStyle(
+                          color: Colors.white38,
+                          fontSize: 11,
+                          fontWeight: FontWeight.bold,
+                        ),
+                      ),
                       const SizedBox(height: 10),
-                      
+
                       // Botões Inline que chamam o Player de Vídeo Integrado
                       Row(
                         children: [
                           Expanded(
                             child: OutlinedButton.icon(
-                              style: OutlinedButton.styleFrom(side: const BorderSide(color: Colors.white24)),
-                              icon: const Icon(Icons.person_pin, color: Colors.blueAccent),
-                              label: const Text("Vídeo Rosto", style: TextStyle(color: Colors.white70, fontSize: 13)),
+                              style: OutlinedButton.styleFrom(
+                                side: const BorderSide(color: Colors.white24),
+                              ),
+                              icon: const Icon(
+                                Icons.person_pin,
+                                color: AppColors.info,
+                              ),
+                              label: const Text(
+                                "Vídeo Rosto",
+                                style: TextStyle(
+                                  color: Colors.white70,
+                                  fontSize: 13,
+                                ),
+                              ),
                               // 🚀 ATUALIZADO: Abre o player diretamente dentro do app
-                              onPressed: urlRosto.isEmpty ? null : () => _assistirVideoInline(urlRosto, "Vídeo do Rosto ($usuarioNome)"),
+                              onPressed: urlRosto.isEmpty
+                                  ? null
+                                  : () => _assistirVideoInline(
+                                      urlRosto,
+                                      "Vídeo do Rosto ($usuarioNome)",
+                                    ),
                             ),
                           ),
                           const SizedBox(width: 10),
                           Expanded(
                             child: OutlinedButton.icon(
-                              style: OutlinedButton.styleFrom(side: const BorderSide(color: Colors.white24)),
-                              icon: const Icon(Icons.monitor_weight_outlined, color: Colors.orangeAccent),
-                              label: const Text("Vídeo Peso", style: TextStyle(color: Colors.white70, fontSize: 13)),
+                              style: OutlinedButton.styleFrom(
+                                side: const BorderSide(color: Colors.white24),
+                              ),
+                              icon: const Icon(
+                                Icons.monitor_weight_outlined,
+                                color: AppColors.warning,
+                              ),
+                              label: const Text(
+                                "Vídeo Peso",
+                                style: TextStyle(
+                                  color: Colors.white70,
+                                  fontSize: 13,
+                                ),
+                              ),
                               // 🚀 ATUALIZADO: Abre o player diretamente dentro do app
-                              onPressed: urlPeso.isEmpty ? null : () => _assistirVideoInline(urlPeso, "Vídeo do Peso ($usuarioNome)"),
+                              onPressed: urlPeso.isEmpty
+                                  ? null
+                                  : () => _assistirVideoInline(
+                                      urlPeso,
+                                      "Vídeo do Peso ($usuarioNome)",
+                                    ),
                             ),
                           ),
                         ],
                       ),
                       const SizedBox(height: 16),
-                      
+
                       // Botões de Ação para o ADM homologar
                       Row(
                         children: [
                           Expanded(
                             child: ElevatedButton.icon(
-                              style: ElevatedButton.styleFrom(backgroundColor: Colors.redAccent.withValues(alpha: 0.2), foregroundColor: Colors.redAccent, elevation: 0),
+                              style: ElevatedButton.styleFrom(
+                                backgroundColor: AppColors.error.withValues(
+                                  alpha: 0.2,
+                                ),
+                                foregroundColor: AppColors.error,
+                                elevation: 0,
+                              ),
                               icon: const Icon(Icons.close),
-                              label: const Text("REPROVAR", style: TextStyle(fontWeight: FontWeight.bold)),
-                              onPressed: () => _moderarVideo(inscricao['id'].toString(), 'reprovado'),
+                              label: const Text(
+                                "REPROVAR",
+                                style: TextStyle(fontWeight: FontWeight.bold),
+                              ),
+                              onPressed: () => _moderarVideo(
+                                inscricao['id'].toString(),
+                                'reprovado',
+                              ),
                             ),
                           ),
                           const SizedBox(width: 12),
                           Expanded(
                             child: ElevatedButton.icon(
-                              style: ElevatedButton.styleFrom(backgroundColor: const Color(0xFF00E676), foregroundColor: Colors.black, elevation: 0),
+                              style: ElevatedButton.styleFrom(
+                                backgroundColor: AppColors.success,
+                                foregroundColor: AppColors.onPrimary,
+                                elevation: 0,
+                              ),
                               icon: const Icon(Icons.check),
-                              label: const Text("APROVAR", style: TextStyle(fontWeight: FontWeight.bold)),
-                              onPressed: () => _moderarVideo(inscricao['id'].toString(), 'aprovado'),
+                              label: const Text(
+                                "APROVAR",
+                                style: TextStyle(fontWeight: FontWeight.bold),
+                              ),
+                              onPressed: () => _moderarVideo(
+                                inscricao['id'].toString(),
+                                'aprovado',
+                              ),
                             ),
                           ),
                         ],
@@ -761,7 +1042,11 @@ class ModalPlayerVideo extends StatefulWidget {
   final String urlVideo;
   final String titulo;
 
-  const ModalPlayerVideo({super.key, required this.urlVideo, required this.titulo});
+  const ModalPlayerVideo({
+    super.key,
+    required this.urlVideo,
+    required this.titulo,
+  });
 
   @override
   State<ModalPlayerVideo> createState() => _ModalPlayerVideoState();
@@ -776,67 +1061,93 @@ class _ModalPlayerVideoState extends State<ModalPlayerVideo> {
   void initState() {
     super.initState();
     _controller = VideoPlayerController.networkUrl(Uri.parse(widget.urlVideo))
-      ..initialize().then((_) {
-        setState(() {
-          _inicializado = true;
-          _controller.play();
-          _controller.setLooping(true); 
-        });
-      }).catchError((e) {
-        setState(() => _erro = true);
-        print("Erro ao carregar o vídeo no player: $e");
-      });
+      ..initialize()
+          .then((_) {
+            setState(() {
+              _inicializado = true;
+              _controller.play();
+              _controller.setLooping(true);
+            });
+          })
+          .catchError((e) {
+            setState(() => _erro = true);
+            print("Erro ao carregar o vídeo no player: $e");
+          });
   }
 
   @override
   void dispose() {
-    _controller.dispose(); 
+    _controller.dispose();
     super.dispose();
   }
 
   @override
   Widget build(BuildContext context) {
     return AlertDialog(
-      backgroundColor: const Color(0xFF1A1A1A),
+      backgroundColor: AppColors.card,
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
       title: Row(
         mainAxisAlignment: MainAxisAlignment.spaceBetween,
         children: [
-          Expanded(child: Text(widget.titulo, style: const TextStyle(color: Colors.white, fontSize: 16, fontWeight: FontWeight.bold), overflow: TextOverflow.ellipsis)),
+          Expanded(
+            child: Text(
+              widget.titulo,
+              style: const TextStyle(
+                color: Colors.white,
+                fontSize: 16,
+                fontWeight: FontWeight.bold,
+              ),
+              overflow: TextOverflow.ellipsis,
+            ),
+          ),
           IconButton(
             icon: const Icon(Icons.close, color: Colors.white54),
             onPressed: () => Navigator.pop(context),
-          )
+          ),
         ],
       ),
       content: SizedBox(
-        width: 400, 
+        width: 400,
         height: 400,
         child: _erro
-            ? const Center(child: Text("❌ Erro ao reproduzir vídeo.\nVerifique se o Bucket é público.", textAlign: TextAlign.center, style: TextStyle(color: Colors.redAccent)))
+            ? const Center(
+                child: Text(
+                  "❌ Erro ao reproduzir vídeo.\nVerifique se o Bucket é público.",
+                  textAlign: TextAlign.center,
+                  style: TextStyle(color: AppColors.error),
+                ),
+              )
             : _inicializado
-                ? GestureDetector(
-                    onTap: () {
-                      setState(() {
-                        _controller.value.isPlaying ? _controller.pause() : _controller.play();
-                      });
-                    },
-                    child: Stack(
-                      alignment: Alignment.center,
-                      children: [
-                        AspectRatio(
-                          aspectRatio: _controller.value.aspectRatio,
-                          child: VideoPlayer(_controller),
-                        ),
-                        if (!_controller.value.isPlaying)
-                          const CircleAvatar(
-                            backgroundColor: Colors.black54,
-                            child: Icon(Icons.play_arrow, color: Colors.white, size: 30),
-                          ),
-                      ],
+            ? GestureDetector(
+                onTap: () {
+                  setState(() {
+                    _controller.value.isPlaying
+                        ? _controller.pause()
+                        : _controller.play();
+                  });
+                },
+                child: Stack(
+                  alignment: Alignment.center,
+                  children: [
+                    AspectRatio(
+                      aspectRatio: _controller.value.aspectRatio,
+                      child: VideoPlayer(_controller),
                     ),
-                  )
-                : const Center(child: CircularProgressIndicator(color: Color(0xFF00E676))),
+                    if (!_controller.value.isPlaying)
+                      const CircleAvatar(
+                        backgroundColor: Colors.black54,
+                        child: Icon(
+                          Icons.play_arrow,
+                          color: Colors.white,
+                          size: 30,
+                        ),
+                      ),
+                  ],
+                ),
+              )
+            : const Center(
+                child: CircularProgressIndicator(color: AppColors.primary),
+              ),
       ),
     );
   }

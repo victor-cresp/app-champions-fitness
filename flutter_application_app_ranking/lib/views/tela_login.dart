@@ -40,7 +40,9 @@ class _TelaLoginState extends State<TelaLogin> {
   Future<void> _fazerLoginComGoogle() async {
     setState(() => _carregando = true);
     try {
-      final String urlDeRedirecionamento = kIsWeb ? Uri.base.origin : 'io.supabase.flutter://login-callback';
+      final String urlDeRedirecionamento = kIsWeb
+          ? Uri.base.origin
+          : 'io.supabase.flutter://login-callback';
       await supabase.auth.signInWithOAuth(
         OAuthProvider.google,
         redirectTo: urlDeRedirecionamento,
@@ -54,14 +56,16 @@ class _TelaLoginState extends State<TelaLogin> {
 
   void _mostrarErro(String msg) {
     if (!mounted) return;
-    ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(msg), backgroundColor: Colors.redAccent));
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(content: Text(msg), backgroundColor: AppColors.error),
+    );
   }
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
       // 🛠️ FIX DO CINZA 1: Força o fundo do próprio Scaffold a ser preto puro, matando o bug do cinza
-      backgroundColor: Colors.black,
+      backgroundColor: AppColors.background,
       resizeToAvoidBottomInset: true,
       body: Container(
         width: double.infinity,
@@ -70,32 +74,38 @@ class _TelaLoginState extends State<TelaLogin> {
           gradient: LinearGradient(
             begin: Alignment.topCenter,
             end: Alignment.bottomCenter,
-            colors: [Color(0xFF1E1E1E), Colors.black], // Ajustado o início para um grafite premium
+            colors: [AppColors.backgroundElevated, AppColors.background],
           ),
         ),
         child: SafeArea(
-          bottom: false, // 🛠️ FIX DO CINZA 2: Impede o sistema de pintar o rodapé de cinza
+          bottom:
+              false, // 🛠️ FIX DO CINZA 2: Impede o sistema de pintar o rodapé de cinza
           child: SingleChildScrollView(
-            padding: const EdgeInsets.symmetric(horizontal: 24.0, vertical: 16.0),
+            padding: const EdgeInsets.symmetric(
+              horizontal: 24.0,
+              vertical: 16.0,
+            ),
             child: Form(
               key: _formKey,
               child: Column(
                 children: [
                   const SizedBox(height: 50),
-                  
+
                   // 🚀 LOGO EM DESTAQUE (Apenas maior e limpa, sem fundo verde)
                   Center(
                     child: SizedBox(
-                      height: 160, // Aumentado para 160 para dar o destaque que você quer
+                      height:
+                          160, // Aumentado para 160 para dar o destaque que você quer
                       child: Image.asset(
-                        'assets/logo.png', 
+                        'assets/logo.png',
                         fit: BoxFit.contain,
                       ),
                     ),
                   ),
-                  
-                  const SizedBox(height: 24), // Espaço elegante entre a logo e o texto abaixo
-                  
+
+                  const SizedBox(
+                    height: 24,
+                  ), // Espaço elegante entre a logo e o texto abaixo
                   // Nome do app imponente
                   const Text(
                     "Circuito Fitness",
@@ -106,34 +116,45 @@ class _TelaLoginState extends State<TelaLogin> {
                       letterSpacing: 1.5,
                     ),
                   ),
-                  
+
                   const SizedBox(height: 40),
-                  
+
                   // Campo E-mail
                   TextFormField(
                     controller: _emailController,
                     style: const TextStyle(color: Colors.white),
-                    decoration: _inputDecoration("E-mail ou Usuário", Icons.person_outline),
+                    decoration: _inputDecoration(
+                      "E-mail ou Usuário",
+                      Icons.person_outline,
+                    ),
                     validator: (v) => v!.isEmpty ? "Informe seu e-mail" : null,
                   ),
                   const SizedBox(height: 16),
-                  
+
                   // Campo Senha
                   TextFormField(
                     controller: _senhaController,
                     obscureText: !_senhaVisivel,
                     style: const TextStyle(color: Colors.white),
-                    decoration: _inputDecoration("Senha", Icons.lock_outline).copyWith(
-                      suffixIcon: IconButton(
-                        icon: Icon(_senhaVisivel ? Icons.visibility : Icons.visibility_off, color: Colors.white54),
-                        onPressed: () => setState(() => _senhaVisivel = !_senhaVisivel),
-                      ),
-                    ),
-                    validator: (v) => v!.length < 6 ? "Senha muito curta" : null,
+                    decoration: _inputDecoration("Senha", Icons.lock_outline)
+                        .copyWith(
+                          suffixIcon: IconButton(
+                            icon: Icon(
+                              _senhaVisivel
+                                  ? Icons.visibility
+                                  : Icons.visibility_off,
+                              color: Colors.white54,
+                            ),
+                            onPressed: () =>
+                                setState(() => _senhaVisivel = !_senhaVisivel),
+                          ),
+                        ),
+                    validator: (v) =>
+                        v!.length < 6 ? "Senha muito curta" : null,
                   ),
-                  
+
                   const SizedBox(height: 28),
-                  
+
                   // Botão Entrar
                   SizedBox(
                     width: double.infinity,
@@ -141,34 +162,65 @@ class _TelaLoginState extends State<TelaLogin> {
                     child: ElevatedButton(
                       onPressed: _carregando ? null : _fazerLoginEmail,
                       style: ElevatedButton.styleFrom(
-                        backgroundColor: Colors.greenAccent.shade400,
-                        foregroundColor: Colors.black,
+                        backgroundColor: AppColors.primary,
+                        foregroundColor: AppColors.onPrimary,
                         elevation: 4,
-                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(12),
+                        ),
                       ),
-                      child: _carregando 
-                        ? const CircularProgressIndicator(color: Colors.black) 
-                        : const Text("ENTRAR", style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16, letterSpacing: 0.5)),
+                      child: _carregando
+                          ? const CircularProgressIndicator(
+                              color: AppColors.onPrimary,
+                            )
+                          : const Text(
+                              "ENTRAR",
+                              style: TextStyle(
+                                fontWeight: FontWeight.bold,
+                                fontSize: 16,
+                                letterSpacing: 0.5,
+                              ),
+                            ),
                     ),
                   ),
-                  
+
                   const SizedBox(height: 24),
-                  const Text("OU", style: TextStyle(color: Colors.white38, fontWeight: FontWeight.bold)),
+                  const Text(
+                    "OU",
+                    style: TextStyle(
+                      color: Colors.white38,
+                      fontWeight: FontWeight.bold,
+                    ),
+                  ),
                   const SizedBox(height: 24),
-                  
+
                   // Botão Google
                   _botaoGoogle(),
 
                   const SizedBox(height: 40),
-                  
+
                   // Link para Registro
                   Row(
                     mainAxisAlignment: MainAxisAlignment.center,
                     children: [
-                      const Text("Não tem uma conta?", style: TextStyle(color: Colors.white70)),
+                      const Text(
+                        "Não tem uma conta?",
+                        style: TextStyle(color: Colors.white70),
+                      ),
                       TextButton(
-                        onPressed: () => Navigator.push(context, MaterialPageRoute(builder: (_) => const TelaRegistro())),
-                        child: Text("Cadastrar-se", style: TextStyle(color: Colors.greenAccent.shade400, fontWeight: FontWeight.bold)),
+                        onPressed: () => Navigator.push(
+                          context,
+                          MaterialPageRoute(
+                            builder: (_) => const TelaRegistro(),
+                          ),
+                        ),
+                        child: Text(
+                          "Cadastrar-se",
+                          style: TextStyle(
+                            color: AppColors.primary,
+                            fontWeight: FontWeight.bold,
+                          ),
+                        ),
                       ),
                     ],
                   ),
@@ -183,8 +235,10 @@ class _TelaLoginState extends State<TelaLogin> {
   }
 
   InputDecoration _inputDecoration(String label, IconData icon) {
-    return buildInputDecoration(label: label, icon: icon)
-      .copyWith(fillColor: Colors.white.withValues(alpha: 0.05));
+    return buildInputDecoration(
+      label: label,
+      icon: icon,
+    ).copyWith(fillColor: Colors.white.withValues(alpha: 0.05));
   }
 
   Widget _botaoGoogle() {
@@ -200,7 +254,14 @@ class _TelaLoginState extends State<TelaLogin> {
         children: const [
           Icon(Icons.g_mobiledata, size: 30, color: Colors.white),
           SizedBox(width: 8),
-          Text("Entrar com Google", style: TextStyle(color: Colors.white, fontSize: 16, fontWeight: FontWeight.w500)),
+          Text(
+            "Entrar com Google",
+            style: TextStyle(
+              color: Colors.white,
+              fontSize: 16,
+              fontWeight: FontWeight.w500,
+            ),
+          ),
         ],
       ),
     );

@@ -1,10 +1,12 @@
 import 'package:flutter/material.dart';
 import '../core/supabase_client.dart';
-import 'tela_minhas_apostas.dart'; 
+import '../core/app_theme.dart';
+import 'tela_minhas_apostas.dart';
 import 'tela_apostas_disponiveis.dart';
 import 'tela_perfil.dart';
 import 'tela_adm.dart';
 import 'tela_membro.dart';
+import 'tela_ajustes.dart';
 
 class TelaAbas extends StatefulWidget {
   const TelaAbas({super.key});
@@ -16,7 +18,7 @@ class TelaAbas extends StatefulWidget {
 class _TelaAbasState extends State<TelaAbas> {
   int _abaAtual = 0;
   bool _isAdmin = false;
-  String _nomeUsuario = "Atleta"; 
+  String _nomeUsuario = "Atleta";
 
   void _mudarAba(int index) {
     setState(() => _abaAtual = index);
@@ -38,13 +40,14 @@ class _TelaAbasState extends State<TelaAbas> {
           .select('is_admin, nome')
           .eq('id', uid)
           .single();
-      
+
       if (mounted) {
         setState(() {
           _isAdmin = dados['is_admin'] ?? false;
-          
+
           final nomeCompleto = dados['nome'];
-          if (nomeCompleto != null && nomeCompleto.toString().trim().isNotEmpty) {
+          if (nomeCompleto != null &&
+              nomeCompleto.toString().trim().isNotEmpty) {
             _nomeUsuario = nomeCompleto.toString().trim().split(' ')[0];
           } else {
             _nomeUsuario = "Atleta";
@@ -62,11 +65,15 @@ class _TelaAbasState extends State<TelaAbas> {
 
   List<Widget> _obterTelas() {
     final telas = [
-      TelaMinhasApostas(onIrParaNovaAposta: () => _mudarAba(1)), 
-      TelaApostasDisponiveis(onDesafioInscrito: () => _mudarAba(0)),                            
-      const TelaMembro(), // 🚀 INJETADO: Nova aba de assinatura na posição 2
-      const TelaPerfil(),                                        
-      const Center(child: Text("Tela de Configurações em Desenvolvimento", style: TextStyle(color: Colors.white70, fontSize: 16))), 
+      TelaMinhasApostas(onIrParaNovaAposta: () => _mudarAba(1)),
+      TelaApostasDisponiveis(onDesafioInscrito: () => _mudarAba(0)),
+      TelaMembro(onAbrirDesafios: () => _mudarAba(1)),
+      const TelaPerfil(),
+      TelaAjustes(
+        onEditarPerfil: () => _mudarAba(3),
+        onAbrirDesafios: () => _mudarAba(0),
+        onAbrirPro: () => _mudarAba(2),
+      ),
     ];
 
     if (_isAdmin) {
@@ -85,40 +92,63 @@ class _TelaAbasState extends State<TelaAbas> {
 
     return Scaffold(
       appBar: AppBar(
-        backgroundColor: const Color(0xFF121212),
+        backgroundColor: AppColors.background,
         elevation: 0,
-        toolbarHeight: 70, 
+        toolbarHeight: 70,
         title: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
             const Text(
               "Olá,",
-              style: TextStyle(fontSize: 14, color: Colors.white54, fontWeight: FontWeight.w400),
+              style: TextStyle(
+                fontSize: 14,
+                color: Colors.white54,
+                fontWeight: FontWeight.w400,
+              ),
             ),
             Text(
               _nomeUsuario,
-              style: const TextStyle(fontSize: 22, fontWeight: FontWeight.bold, color: Colors.white, letterSpacing: 0.5),
+              style: const TextStyle(
+                fontSize: 22,
+                fontWeight: FontWeight.bold,
+                color: Colors.white,
+                letterSpacing: 0.5,
+              ),
             ),
           ],
         ),
         actions: [
           IconButton(
-            icon: const Icon(Icons.logout, color: Colors.redAccent, size: 26),
+            icon: const Icon(Icons.logout, color: AppColors.error, size: 26),
             tooltip: "Sair do Aplicativo",
             onPressed: () {
               showDialog(
                 context: context,
                 builder: (BuildContext context) {
                   return AlertDialog(
-                    backgroundColor: const Color(0xFF1E1E1E),
-                    title: const Text("Sair do Aplicativo", style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
-                    content: const Text("Você tem certeza que deseja sair da sua conta?", style: TextStyle(color: Colors.white70)),
-                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+                    backgroundColor: AppColors.surface,
+                    title: const Text(
+                      "Sair do Aplicativo",
+                      style: TextStyle(
+                        color: Colors.white,
+                        fontWeight: FontWeight.bold,
+                      ),
+                    ),
+                    content: const Text(
+                      "Você tem certeza que deseja sair da sua conta?",
+                      style: TextStyle(color: Colors.white70),
+                    ),
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(16),
+                    ),
                     actions: [
                       TextButton(
                         onPressed: () => Navigator.of(context).pop(),
-                        child: const Text("Cancelar", style: TextStyle(color: Colors.white38)),
+                        child: const Text(
+                          "Cancelar",
+                          style: TextStyle(color: Colors.white38),
+                        ),
                       ),
                       ElevatedButton(
                         onPressed: () async {
@@ -126,10 +156,18 @@ class _TelaAbasState extends State<TelaAbas> {
                           await supabase.auth.signOut();
                         },
                         style: ElevatedButton.styleFrom(
-                          backgroundColor: Colors.redAccent,
-                          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+                          backgroundColor: AppColors.error,
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(8),
+                          ),
                         ),
-                        child: const Text("Sair", style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
+                        child: const Text(
+                          "Sair",
+                          style: TextStyle(
+                            color: Colors.white,
+                            fontWeight: FontWeight.bold,
+                          ),
+                        ),
                       ),
                     ],
                   );
@@ -144,12 +182,12 @@ class _TelaAbasState extends State<TelaAbas> {
       bottomNavigationBar: BottomNavigationBar(
         currentIndex: _abaAtual,
         onTap: (index) => setState(() => _abaAtual = index),
-        backgroundColor: const Color(0xFF1A1A1A),
-        selectedItemColor: Colors.greenAccent.shade400,
+        backgroundColor: AppColors.card,
+        selectedItemColor: AppColors.primary,
         unselectedItemColor: Colors.white38,
         showUnselectedLabels: true,
 
-        type: BottomNavigationBarType.fixed, 
+        type: BottomNavigationBarType.fixed,
         items: [
           const BottomNavigationBarItem(
             icon: Icon(Icons.emoji_events_outlined),
