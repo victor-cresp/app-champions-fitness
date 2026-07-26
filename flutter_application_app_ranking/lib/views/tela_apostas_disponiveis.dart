@@ -31,14 +31,14 @@ class _TelaApostasDisponiveisState extends State<TelaApostasDisponiveis> {
     setState(() => _carregando = true);
 
     final uid = supabase.auth.currentUser?.id;
-    final agora = DateTime.now().toIso8601String();
+    final agora = DateTime.now();
 
     try {
       // Filtra apenas desafios que ainda aceitam inscrição (data_limite_inscricao >= agora)
       final dados = await supabase
           .from('v_apostas_com_participantes')
           .select('*')
-          .gte('data_limite_inscricao', agora)
+          .gte('data_limite_inscricao', agora.toUtc().toIso8601String())
           .order('data_limite_inscricao', ascending: true);
 
       if (uid != null) {
@@ -52,6 +52,26 @@ class _TelaApostasDisponiveisState extends State<TelaApostasDisponiveis> {
         _minhasPendencias.clear();
 
         for (var inscricao in inscricoes) {
+          final desafio = inscricao['desafios'];
+          if (desafio is! Map || desafio.isEmpty) {
+            continue;
+          }
+
+          if (desafio['is_deleted'] == true) {
+            continue;
+          }
+
+          final dataLimiteInscricao = DateTime.tryParse(
+            desafio['data_limite_inscricao']?.toString() ?? '',
+          );
+          final inscricaoAindaNoPrazo =
+              dataLimiteInscricao == null ||
+              !agora.isAfter(dataLimiteInscricao);
+
+          if (!inscricaoAindaNoPrazo) {
+            continue;
+          }
+
           _desafiosInscritosIds.add(inscricao['aposta_id'].toString());
 
           // Verifica se é uma pendência (pagamento pendente OU vídeo não aprovado)

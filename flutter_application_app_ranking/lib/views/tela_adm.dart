@@ -50,6 +50,7 @@ class _TelaAdmState extends State<TelaAdm> {
   @override
   void initState() {
     super.initState();
+    _buscarDesafiosDoSupabase();
     _buscarVideosParaAnalise(resetar: true);
 
     // Ouvinte da barra de rolagem (Dispara carregamento automático ao atingir 80% da tela)
@@ -198,13 +199,21 @@ class _TelaAdmState extends State<TelaAdm> {
 
   Future<void> _excluirDesafio(dynamic desafioId) async {
     try {
-      await supabase
+      final desafioExcluido = await supabase
           .from('desafios')
           .update({
             'is_deleted': true,
             'deleted_at': DateTime.now().toIso8601String(),
           })
-          .eq('id', desafioId);
+          .eq('id', desafioId)
+          .select('id')
+          .maybeSingle();
+
+      if (desafioExcluido == null) {
+        throw Exception(
+          "Desafio não encontrado ou usuário sem permissão para excluí-lo.",
+        );
+      }
 
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
