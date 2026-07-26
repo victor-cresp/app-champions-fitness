@@ -1,11 +1,14 @@
-import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:image_picker/image_picker.dart';
+import 'package:supabase_flutter/supabase_flutter.dart';
 import '../core/supabase_client.dart';
 import '../core/app_theme.dart';
+import '../services/user_profile_name.dart';
 
 class TelaPerfil extends StatefulWidget {
-  const TelaPerfil({super.key});
+  final ValueChanged<String>? onNomeAtualizado;
+
+  const TelaPerfil({super.key, this.onNomeAtualizado});
 
   @override
   State<TelaPerfil> createState() => _TelaPerfilState();
@@ -35,17 +38,30 @@ class _TelaPerfilState extends State<TelaPerfil> {
           .from('usuarios')
           .select('nome, descricao, foto_url')
           .eq('id', uid)
-          .single();
+          .maybeSingle();
 
-      setState(() {
-        _nomeController.text = dados['nome'] ?? '';
-        _descricaoController.text = dados['descricao'] ?? '';
-        _fotoUrl = dados['foto_url'];
-        _carregando = false;
-      });
+      final nomeAuth = nomeNosMetadadosAuth(
+        supabase.auth.currentUser?.userMetadata,
+      );
+
+      if (mounted) {
+        setState(() {
+          _nomeController.text = dados?['nome'] ?? nomeAuth ?? '';
+          _descricaoController.text = dados?['descricao'] ?? '';
+          _fotoUrl = dados?['foto_url'];
+          _carregando = false;
+        });
+      }
     } catch (e) {
-      setState(() => _carregando = false);
-      _mostrarMensagem("Erro ao carregar perfil: $e", AppColors.error);
+      if (mounted) {
+        setState(() {
+          _nomeController.text =
+              nomeNosMetadadosAuth(supabase.auth.currentUser?.userMetadata) ??
+              '';
+          _carregando = false;
+        });
+        _mostrarMensagem("Erro ao carregar perfil: $e", AppColors.error);
+      }
     }
   }
 
@@ -61,8 +77,9 @@ class _TelaPerfilState extends State<TelaPerfil> {
       imageQuality: 70, // Compacta a imagem para o upload voar
     );
 
-    if (imagemSelecionada == null)
+    if (imagemSelecionada == null) {
       return; // Usuário desistiu de escolher a foto
+    }
 
     setState(() => _salvando = true);
 
@@ -102,25 +119,68 @@ class _TelaPerfilState extends State<TelaPerfil> {
 
   // 3. Salva as alterações de Nome e Descrição
   Future<void> _salvarDados() async {
-    final uid = supabase.auth.currentUser?.id;
-    if (uid == null) return;
+    final usuarioAuth = supabase.auth.currentUser;
+    if (usuarioAuth == null) return;
+
+    final nome = _nomeController.text.trim();
+    if (nome.isEmpty) {
+      _mostrarMensagem("Informe seu nome antes de salvar.", AppColors.warning);
+      return;
+    }
 
     setState(() => _salvando = true);
 
     try {
-      await supabase
-          .from('usuarios')
-          .update({
-            'nome': _nomeController.text.trim(),
-            'descricao': _descricaoController.text.trim(),
-          })
-          .eq('id', uid);
+      final alteracoesPerfil = <String, dynamic>{
+        'nome': nome,
+        'descricao': _descricaoController.text.trim(),
+      };
 
-      setState(() => _salvando = false);
-      _mostrarMensagem("Perfil atualizado com sucesso!", AppColors.success);
+      var perfilSalvo = await supabase
+          .from('usuarios')
+          .update(alteracoesPerfil)
+          .eq('id', usuarioAuth.id)
+          .select('id')
+          .maybeSingle();
+
+      if (perfilSalvo == null) {
+        final novoPerfil = <String, dynamic>{
+          'id': usuarioAuth.id,
+          ...alteracoesPerfil,
+        };
+        if (usuarioAuth.email != null) {
+          novoPerfil['email'] = usuarioAuth.email;
+        }
+
+        perfilSalvo = await supabase
+            .from('usuarios')
+            .insert(novoPerfil)
+            .select('id')
+            .maybeSingle();
+      }
+
+      if (perfilSalvo == null) {
+        throw Exception("Não foi possível salvar seu perfil no Supabase.");
+      }
+
+      try {
+        await supabase.auth.updateUser(
+          UserAttributes(data: {'nome': nome, 'full_name': nome}),
+        );
+      } catch (e) {
+        debugPrint('Não foi possível sincronizar o nome no Auth: $e');
+      }
+
+      if (mounted) {
+        setState(() => _salvando = false);
+        widget.onNomeAtualizado?.call(nome);
+        _mostrarMensagem("Perfil atualizado com sucesso!", AppColors.success);
+      }
     } catch (e) {
-      setState(() => _salvando = false);
-      _mostrarMensagem("Erro ao salvar dados: $e", AppColors.error);
+      if (mounted) {
+        setState(() => _salvando = false);
+        _mostrarMensagem("Erro ao salvar dados: $e", AppColors.error);
+      }
     }
   }
 

@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import '../core/supabase_client.dart';
 import '../core/app_theme.dart';
+import '../services/user_profile_name.dart';
 import 'tela_minhas_apostas.dart';
 import 'tela_apostas_disponiveis.dart';
 import 'tela_perfil.dart';
@@ -27,6 +28,9 @@ class _TelaAbasState extends State<TelaAbas> {
   @override
   void initState() {
     super.initState();
+    _nomeUsuario = primeiroNomeOuAtleta(
+      nomeNosMetadadosAuth(supabase.auth.currentUser?.userMetadata),
+    );
     _buscarDadosIniciais();
   }
 
@@ -39,28 +43,51 @@ class _TelaAbasState extends State<TelaAbas> {
           .from('usuarios')
           .select('is_admin, nome')
           .eq('id', uid)
-          .single();
+          .maybeSingle();
+
+      final nomeAuth = nomeNosMetadadosAuth(
+        supabase.auth.currentUser?.userMetadata,
+      );
+      final nomeBanco = dados?['nome']?.toString().trim();
+      final nomeCompleto = nomeBanco != null && nomeBanco.isNotEmpty
+          ? nomeBanco
+          : nomeAuth;
+
+      if (dados != null &&
+          (nomeBanco == null || nomeBanco.isEmpty) &&
+          nomeAuth != null) {
+        try {
+          await supabase
+              .from('usuarios')
+              .update({'nome': nomeAuth})
+              .eq('id', uid);
+        } catch (e) {
+          debugPrint('Não foi possível sincronizar o nome do Auth: $e');
+        }
+      }
 
       if (mounted) {
         setState(() {
-          _isAdmin = dados['is_admin'] ?? false;
-
-          final nomeCompleto = dados['nome'];
-          if (nomeCompleto != null &&
-              nomeCompleto.toString().trim().isNotEmpty) {
-            _nomeUsuario = nomeCompleto.toString().trim().split(' ')[0];
-          } else {
-            _nomeUsuario = "Atleta";
-          }
+          _isAdmin = dados?['is_admin'] ?? false;
+          _nomeUsuario = primeiroNomeOuAtleta(nomeCompleto);
         });
       }
     } catch (e) {
       if (mounted) {
         setState(() {
-          _nomeUsuario = "Atleta";
+          _nomeUsuario = primeiroNomeOuAtleta(
+            nomeNosMetadadosAuth(supabase.auth.currentUser?.userMetadata),
+          );
         });
       }
     }
+  }
+
+  void _atualizarNomeUsuario(String nomeCompleto) {
+    if (!mounted) return;
+    setState(() {
+      _nomeUsuario = primeiroNomeOuAtleta(nomeCompleto);
+    });
   }
 
   List<Widget> _obterTelas() {
@@ -68,7 +95,7 @@ class _TelaAbasState extends State<TelaAbas> {
       TelaMinhasApostas(onIrParaNovaAposta: () => _mudarAba(1)),
       TelaApostasDisponiveis(onDesafioInscrito: () => _mudarAba(0)),
       TelaMembro(onAbrirDesafios: () => _mudarAba(1)),
-      const TelaPerfil(),
+      TelaPerfil(onNomeAtualizado: _atualizarNomeUsuario),
       TelaAjustes(
         onEditarPerfil: () => _mudarAba(3),
         onAbrirDesafios: () => _mudarAba(0),
