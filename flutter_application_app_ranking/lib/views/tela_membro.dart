@@ -20,6 +20,7 @@ class _TelaMembroState extends State<TelaMembro> {
   bool _isMembro = false;
   bool _processandoAssinatura = false;
   bool _mostrarCheckout = false;
+  final _checkoutKey = GlobalKey();
   RealtimeChannel? _usuarioSubscription; // 🔥 Canal Realtime da assinatura
 
   String _metodoSelecionado = 'PIX';
@@ -184,6 +185,21 @@ class _TelaMembroState extends State<TelaMembro> {
     } finally {
       if (mounted) setState(() => _processandoAssinatura = false);
     }
+  }
+
+  void _abrirCheckout() {
+    setState(() => _mostrarCheckout = true);
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      final checkoutContext = _checkoutKey.currentContext;
+      if (checkoutContext == null) return;
+
+      Scrollable.ensureVisible(
+        checkoutContext,
+        duration: const Duration(milliseconds: 450),
+        curve: Curves.easeOutCubic,
+        alignment: 0.05,
+      );
+    });
   }
 
   void _alerta(String t, String m, Color c) {
@@ -380,7 +396,7 @@ class _TelaMembroState extends State<TelaMembro> {
                 ),
               ),
               Text(
-                'R\$ 29,90',
+                'R\$ 19,90',
                 style: TextStyle(
                   color: AppColors.proPlatinum,
                   fontWeight: FontWeight.w900,
@@ -451,7 +467,7 @@ class _TelaMembroState extends State<TelaMembro> {
                   borderRadius: BorderRadius.circular(30),
                 ),
                 child: const Text(
-                  'CHAMPIONS PRO',
+                  'CIRCUITO FITNESS PRO',
                   style: TextStyle(
                     color: AppColors.proPlatinum,
                     fontSize: 12,
@@ -484,7 +500,7 @@ class _TelaMembroState extends State<TelaMembro> {
                 crossAxisAlignment: CrossAxisAlignment.end,
                 children: [
                   Text(
-                    'R\$ 29,90',
+                    'R\$ 19,90',
                     style: TextStyle(
                       color: AppColors.textPrimary,
                       fontSize: 30,
@@ -509,7 +525,7 @@ class _TelaMembroState extends State<TelaMembro> {
                     backgroundColor: AppColors.proPlatinum,
                     foregroundColor: AppColors.proOnPrimary,
                   ),
-                  onPressed: () => setState(() => _mostrarCheckout = true),
+                  onPressed: _abrirCheckout,
                   child: const Text(
                     'QUERO SER PRO',
                     style: TextStyle(fontWeight: FontWeight.w900),
@@ -526,6 +542,10 @@ class _TelaMembroState extends State<TelaMembro> {
             ],
           ),
         ),
+        if (_mostrarCheckout) ...[
+          const SizedBox(height: 30),
+          _buildCheckoutAssinatura(),
+        ],
         const SizedBox(height: 30),
         _tituloSecao('O que você encontra no PRO'),
         const SizedBox(height: 12),
@@ -538,7 +558,7 @@ class _TelaMembroState extends State<TelaMembro> {
         _beneficio(
           Icons.emoji_events_outlined,
           'Benefícios nos desafios',
-          'Use o plano nos desafios contemplados pelo Champions PRO.',
+          'Use o plano nos desafios contemplados pelo Circuito Fitness Pro.',
         ),
         const SizedBox(height: 10),
         _beneficio(
@@ -557,7 +577,7 @@ class _TelaMembroState extends State<TelaMembro> {
         const SizedBox(height: 10),
         _faq(
           'O pagamento é recorrente?',
-          'Sim. O Champions PRO custa R\$ 29,90 por mês e a cobrança é mensal.',
+          'Sim. O Circuito Fitness Pro custa R\$ 19,90 por mês e a cobrança é mensal.',
         ),
         _faq(
           'Quando meu PRO é ativado?',
@@ -567,10 +587,6 @@ class _TelaMembroState extends State<TelaMembro> {
           'As regras dos desafios mudam?',
           'Não. Prazos, pesagens, vídeos e critérios de premiação continuam seguindo as regras de cada desafio.',
         ),
-        if (_mostrarCheckout) ...[
-          const SizedBox(height: 30),
-          _buildCheckoutAssinatura(),
-        ],
       ],
     );
   }
@@ -711,6 +727,7 @@ class _TelaMembroState extends State<TelaMembro> {
 
   Widget _buildCheckoutAssinatura() {
     return Container(
+      key: _checkoutKey,
       padding: const EdgeInsets.all(20),
       decoration: BoxDecoration(
         color: AppColors.card,
@@ -736,7 +753,7 @@ class _TelaMembroState extends State<TelaMembro> {
                     ),
                     SizedBox(height: 3),
                     Text(
-                      'Champions PRO • R\$ 29,90/mês',
+                      'Circuito Fitness Pro • R\$ 19,90/mês',
                       style: TextStyle(
                         color: AppColors.textSecondary,
                         fontSize: 12,
@@ -802,7 +819,7 @@ class _TelaMembroState extends State<TelaMembro> {
             const SizedBox(height: 10),
             const Center(
               child: Text(
-                'Cobrança mensal recorrente de R\$ 29,90',
+                'Cobrança mensal recorrente de R\$ 19,90',
                 style: TextStyle(color: AppColors.textMuted, fontSize: 11),
               ),
             ),

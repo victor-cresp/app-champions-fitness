@@ -3,6 +3,7 @@ import 'package:flutter/services.dart' show rootBundle;
 import 'package:supabase_flutter/supabase_flutter.dart';
 import '../core/supabase_client.dart';
 import '../core/app_theme.dart';
+import '../core/cpf_utils.dart';
 
 class TelaRegistro extends StatefulWidget {
   const TelaRegistro({super.key});
@@ -333,8 +334,12 @@ class _TelaRegistroState extends State<TelaRegistro> {
                     validator: (v) {
                       if (v == null || v.isEmpty) return "Campo obrigatório";
                       final digitos = v.replaceAll(RegExp(r'\D'), '');
-                      if (digitos.length != 11)
+                      if (digitos.length != 11) {
                         return "CPF deve ter 11 dígitos";
+                      }
+                      if (!cpfValido(digitos)) {
+                        return "CPF inválido";
+                      }
                       if (_cpfErro != null) return _cpfErro;
                       return null;
                     },
